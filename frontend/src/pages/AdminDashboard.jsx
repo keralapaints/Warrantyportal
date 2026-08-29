@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import client from "../api/client";
+import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import StaffPanel from "../components/StaffPanel.jsx";
 
@@ -268,8 +268,8 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
             {complaint.managerSubmission.imageUrl && (
               <img
                 className="manager-photo"
-                src={complaint.managerSubmission.imageUrl}
-                alt="Manager submission"
+                src={fileUrl(complaint.managerSubmission.imageUrl)}
+                alt="Manager submission" 
               />
             )}
           </div>
