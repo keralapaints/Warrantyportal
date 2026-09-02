@@ -156,6 +156,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
 .field label {
@@ -172,6 +173,8 @@ a {
 .field input,
 .field select,
 .field textarea {
+  width: 100%;
+  box-sizing: border-box;
   font-family: var(--font-body);
   font-size: 14.5px;
   padding: 12px 14px;
