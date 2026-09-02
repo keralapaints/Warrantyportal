@@ -14,10 +14,6 @@ const PUBLIC_FIELDS = [
   "contactNumber",
   "address",
   "invoiceNumber",
-  "product",
-  "batchNo",
-  "quantity",
-  "code",
   "complaintText",
 ];
 
@@ -27,6 +23,15 @@ router.post("/", async (req, res) => {
     const payload = {};
     for (const field of PUBLIC_FIELDS) {
       if (req.body[field] !== undefined) payload[field] = req.body[field];
+    }
+
+    if (Array.isArray(req.body.items)) {
+      payload.items = req.body.items.map((it) => ({
+        product: it.product,
+        batchNo: Number(it.batchNo),
+        quantity: it.quantity,
+        code: Number(it.code),
+      }));
     }
 
     const complaint = await Complaint.create(payload);
@@ -52,7 +57,7 @@ router.post("/", async (req, res) => {
 router.get("/track/:token", async (req, res) => {
   try {
     const complaint = await Complaint.findOne({ token: req.params.token.toUpperCase() }).select(
-      "token status date product createdAt updatedAt"
+      "token status date items createdAt updatedAt"
     );
     if (!complaint) {
       return res.status(404).json({ message: "No complaint found with that token." });
@@ -67,7 +72,6 @@ router.get("/track/:token", async (req, res) => {
 // --- Everything below requires login ---
 router.use(requireAdmin);
 
-// GET /api/complaints?status=new|assigned|review|pending|solved
 router.get("/", async (req, res) => {
   try {
     const { status, search } = req.query;
@@ -98,7 +102,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/complaints/mine — complaints assigned to the logged-in manager
 router.get("/mine", requireRole("manager"), async (req, res) => {
   try {
     const { status } = req.query;
@@ -113,7 +116,6 @@ router.get("/mine", requireRole("manager"), async (req, res) => {
   }
 });
 
-// GET /api/complaints/counts — quick counts for dashboard tab badges
 router.get("/counts", async (req, res) => {
   try {
     const results = await Complaint.aggregate([
@@ -129,7 +131,6 @@ router.get("/counts", async (req, res) => {
   }
 });
 
-// GET /api/complaints/:id
 router.get("/:id", async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id).populate(
@@ -143,7 +144,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PATCH /api/complaints/:id/assign — admin assigns a complaint to a manager
 router.patch("/:id/assign", requireRole("admin"), async (req, res) => {
   try {
     const { managerId } = req.body;
@@ -169,7 +169,6 @@ router.patch("/:id/assign", requireRole("admin"), async (req, res) => {
   }
 });
 
-// PATCH /api/complaints/:id/submit — manager adds description + photo and hands off for review
 router.patch(
   "/:id/submit",
   requireRole("manager"),
@@ -205,7 +204,6 @@ router.patch(
   }
 );
 
-// PATCH /api/complaints/:id/status — happiness manager (or admin) makes the final call
 router.patch(
   "/:id/status",
   requireRole("happiness_manager", "admin"),

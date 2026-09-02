@@ -15,6 +15,12 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function productSummary(items) {
+  if (!items || items.length === 0) return "";
+  if (items.length === 1) return items[0].product;
+  return `${items[0].product} +${items.length - 1} more`;
+}
+
 export default function AdminDashboard() {
   const { name, logout } = useAuth();
   const [complaints, setComplaints] = useState([]);
@@ -112,7 +118,6 @@ export default function AdminDashboard() {
               Manage Staff
             </button>
             <span className="admin-name">{name}</span>
-
             <button className="btn btn-ghost" onClick={logout}>
               Log out
             </button>
@@ -170,7 +175,7 @@ export default function AdminDashboard() {
                     </div>
                     <p className="card-name">{c.customerName}</p>
                     <p className="card-meta">
-                      {c.product} · {c.district}
+                      {productSummary(c.items)} · {c.district}
                     </p>
 
                     {c.assignedTo && (
@@ -251,11 +256,19 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
           <Detail label="Outlet" value={complaint.outlet} />
           <Detail label="Contact number" value={complaint.contactNumber} />
           <Detail label="Invoice number" value={complaint.invoiceNumber} />
-          <Detail label="Product" value={complaint.product} />
-          <Detail label="Batch no." value={complaint.batchNo} />
-          <Detail label="Quantity" value={complaint.quantity} />
-          <Detail label="Code" value={complaint.code} />
           <Detail label="Assigned to" value={complaint.assignedTo?.name || complaint.assignedTo?.username} />
+        </div>
+
+        <span className="detail-label">Products</span>
+        <div className="items-table">
+          {(complaint.items || []).map((it, i) => (
+            <div className="item-line" key={i}>
+              <span className="item-line-product">{it.product}</span>
+              <span className="item-line-meta">
+                Qty {it.quantity} · Batch {it.batchNo} · Code {it.code}
+              </span>
+            </div>
+          ))}
         </div>
 
         <Detail label="Address" value={complaint.address} full />
@@ -269,7 +282,7 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
               <img
                 className="manager-photo"
                 src={fileUrl(complaint.managerSubmission.imageUrl)}
-                alt="Manager submission" 
+                alt="Manager submission"
               />
             )}
           </div>
@@ -359,6 +372,10 @@ function DashStyles() {
       .detail-item.full { grid-column: 1 / -1; }
       .detail-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal-600); font-weight: 700; }
       .detail-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
+      .items-table { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+      .item-line { background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .item-line-product { font-weight: 700; font-size: 13.5px; color: var(--navy-900); }
+      .item-line-meta { font-size: 12px; color: var(--ink-muted); font-family: var(--font-mono); }
       .manager-note { margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--line); }
       .manager-photo { display: block; margin-top: 12px; max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
       .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--line); }

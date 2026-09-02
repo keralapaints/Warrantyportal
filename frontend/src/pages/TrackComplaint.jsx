@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import client from "../api/client";
 
-const STATUS_LABEL = { new: "New", pending: "Pending", solved: "Solved" };
+const STATUS_LABEL = { new: "New", assigned: "Assigned", review: "In Review", pending: "Pending", solved: "Solved" };
 
 export default function TrackComplaint() {
   const location = useLocation();
@@ -59,7 +59,7 @@ export default function TrackComplaint() {
                 </span>
               </div>
               <p className="result-meta">
-                {result.product} · submitted{" "}
+                {(result.items || []).map((it) => it.product).join(", ")} · submitted{" "}
                 {new Date(result.date).toLocaleDateString("en-IN", {
                   day: "numeric",
                   month: "short",

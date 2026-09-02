@@ -1,9 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import client from "../api/client";
+import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function productSummary(items) {
+  if (!items || items.length === 0) return "";
+  return items.map((it) => it.product).join(", ");
 }
 
 export default function ManagerDashboard() {
@@ -11,8 +16,9 @@ export default function ManagerDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [active, setActive] = useState(null); // complaint being worked on
-  const [tab, setTab] = useState("assigned"); // assigned | review | pending | solved
+  const [active, setActive] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [tab, setTab] = useState("assigned");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,7 +77,12 @@ export default function ManagerDashboard() {
           {!loading && visible.length === 0 && <div className="empty-note">Nothing here.</div>}
 
           {visible.map((c) => (
-            <div className="complaint-row" key={c._id}>
+            <div
+              className="complaint-row"
+              key={c._id}
+              onClick={() => (c.status === "assigned" ? undefined : setViewing(c))}
+              style={{ cursor: c.status === "assigned" ? "default" : "pointer" }}
+            >
               <div className="row-main">
                 <div className="row-top">
                   <span className="token-badge">{c.token}</span>
@@ -79,13 +90,19 @@ export default function ManagerDashboard() {
                 </div>
                 <p className="card-name">{c.customerName}</p>
                 <p className="card-meta">
-                  {c.product} · {c.district} · {c.outlet}
+                  {productSummary(c.items)} · {c.district} · {c.outlet}
                 </p>
                 <p className="card-complaint">{c.complaintText}</p>
               </div>
 
               {c.status === "assigned" && (
-                <button className="btn btn-primary" onClick={() => setActive(c)}>
+                <button
+                  className="btn btn-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActive(c);
+                  }}
+                >
                   Add report
                 </button>
               )}
@@ -112,7 +129,63 @@ export default function ManagerDashboard() {
         />
       )}
 
+      {viewing && <ViewModal complaint={viewing} onClose={() => setViewing(null)} />}
+
       <ManagerStyles />
+    </div>
+  );
+}
+
+function ItemsList({ items }) {
+  return (
+    <div className="items-table">
+      {(items || []).map((it, i) => (
+        <div className="item-line" key={i}>
+          <span className="item-line-product">{it.product}</span>
+          <span className="item-line-meta">
+            Qty {it.quantity} · Batch {it.batchNo} · Code {it.code}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ViewModal({ complaint, onClose }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card glass-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <span className="token-badge">{complaint.token}</span>
+            <span className={`status-chip ${complaint.status}`} style={{ marginLeft: 10 }}>
+              <span className="dot" />
+              {complaint.status}
+            </span>
+          </div>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <h2>{complaint.customerName}</h2>
+        <ItemsList items={complaint.items} />
+        <p className="original-complaint">{complaint.complaintText}</p>
+
+        {complaint.managerSubmission?.description && (
+          <div className="manager-note">
+            <span className="detail-label">Your report</span>
+            <p className="detail-value">{complaint.managerSubmission.description}</p>
+            {complaint.managerSubmission.imageUrl && (
+              <img
+                className="upload-preview"
+                src={fileUrl(complaint.managerSubmission.imageUrl)}
+                alt="Your submitted photo"
+              />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -166,6 +239,7 @@ function SubmitModal({ complaint, onClose, onSubmitted }) {
         </div>
 
         <h2>{complaint.customerName}</h2>
+        <ItemsList items={complaint.items} />
         <p className="original-complaint">{complaint.complaintText}</p>
 
         <form onSubmit={handleSubmit}>
@@ -217,7 +291,9 @@ function ManagerStyles() {
       .complaint-row {
         background: #fff; border: 1px solid var(--line); border-radius: var(--radius-md);
         padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+        transition: box-shadow 0.15s ease;
       }
+      .complaint-row:hover { box-shadow: 0 8px 20px rgba(11,31,58,0.08); }
       .row-main { flex: 1; min-width: 240px; }
       .row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
       .token-badge { font-size: 11.5px; padding: 4px 10px; }
@@ -230,9 +306,16 @@ function ManagerStyles() {
       .modal-card { width: 100%; max-width: 560px; max-height: 86vh; overflow-y: auto; padding: 30px; }
       .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
       .modal-card h2 { font-size: 20px; }
-      .original-complaint { font-size: 13.5px; color: var(--ink-muted); margin-top: 8px; line-height: 1.5; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-      .upload-preview { display: block; margin-top: 12px; max-width: 100%; max-height: 220px; border-radius: var(--radius-md); border: 1px solid var(--line); }
+      .items-table { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; margin-bottom: 4px; }
+      .item-line { background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .item-line-product { font-weight: 700; font-size: 13.5px; color: var(--navy-900); }
+      .item-line-meta { font-size: 12px; color: var(--ink-muted); font-family: var(--font-mono); }
+      .original-complaint { font-size: 13.5px; color: var(--ink-muted); margin-top: 14px; line-height: 1.5; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+      .upload-preview { display: block; margin-top: 12px; max-width: 100%; max-height: 300px; border-radius: var(--radius-md); border: 1px solid var(--line); }
       .submit-error { margin-top: 16px; background: #fdeceb; color: var(--status-danger); border-radius: 9px; padding: 11px 13px; font-size: 13px; font-weight: 500; }
+      .manager-note { margin-top: 18px; padding-top: 18px; }
+      .detail-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal-600); font-weight: 700; }
+      .detail-value { font-size: 14px; color: var(--ink); line-height: 1.5; margin-top: 4px; }
 
       @media (max-width: 640px) {
         .header-inner { flex-direction: column; align-items: flex-start; }

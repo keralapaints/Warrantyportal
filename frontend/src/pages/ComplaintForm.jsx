@@ -7,6 +7,9 @@ const SWATCHES = ["#0f8a80", "#2f6fed", "#d97a13", "#12946f", "#0b1f3a"];
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+let itemUid = 0;
+const newItem = () => ({ uid: itemUid++, product: "", batchNo: "", quantity: "", code: "" });
+
 const emptyForm = {
   date: todayISO(),
   district: "",
@@ -15,11 +18,8 @@ const emptyForm = {
   contactNumber: "",
   address: "",
   invoiceNumber: "",
-  product: "",
-  batchNo: "",
-  quantity: "",
-  code: "",
   complaintText: "",
+  items: [newItem()],
 };
 
 function Field({ label, error, hint, children }) {
@@ -43,19 +43,34 @@ export default function ComplaintForm() {
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   function updateDistrict(e) {
-    // Changing district invalidates whatever outlet was picked, since
-    // outlet options depend on the district.
     setForm((f) => ({ ...f, district: e.target.value, outlet: "" }));
   }
 
-  function updateProduct(e) {
-    // Changing product invalidates whatever quantity was picked, since
-    // pack sizes differ per product.
-    setForm((f) => ({ ...f, product: e.target.value, quantity: "" }));
+  function updateItem(index, key) {
+    return (e) => {
+      const value = e.target.value;
+      setForm((f) => ({
+        ...f,
+        items: f.items.map((it, i) => {
+          if (i !== index) return it;
+          // Changing a product invalidates whatever quantity was picked
+          // for that same row, since pack sizes differ per product.
+          if (key === "product") return { ...it, product: value, quantity: "" };
+          return { ...it, [key]: value };
+        }),
+      }));
+    };
+  }
+
+  function addItem() {
+    setForm((f) => ({ ...f, items: [...f.items, newItem()] }));
+  }
+
+  function removeItem(index) {
+    setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
   }
 
   const outletOptions = form.district ? OUTLETS_BY_DISTRICT[form.district] || [] : [];
-  const quantityOptions = form.product ? QUANTITIES_BY_PRODUCT[form.product] || [] : [];
 
   function validate() {
     const e = {};
@@ -67,11 +82,20 @@ export default function ComplaintForm() {
       e.contactNumber = "Enter a valid contact number.";
     if (!form.address.trim()) e.address = "Enter the address.";
     if (!form.invoiceNumber.trim()) e.invoiceNumber = "Enter the invoice number.";
-    if (!form.product) e.product = "Select a product.";
-    if (!form.batchNo || Number.isNaN(Number(form.batchNo))) e.batchNo = "Enter a valid batch number.";
-    if (!form.quantity) e.quantity = "Select the quantity.";
-    if (!form.code || Number.isNaN(Number(form.code))) e.code = "Enter a valid code.";
     if (!form.complaintText.trim()) e.complaintText = "Describe the complaint.";
+
+    const itemErrors = form.items.map((it) => {
+      const ie = {};
+      if (!it.product) ie.product = "Select a product.";
+      if (!it.batchNo || Number.isNaN(Number(it.batchNo))) ie.batchNo = "Enter a valid batch number.";
+      if (!it.quantity) ie.quantity = "Select the quantity.";
+      if (!it.code || Number.isNaN(Number(it.code))) ie.code = "Enter a valid code.";
+      return ie;
+    });
+    if (itemErrors.some((ie) => Object.keys(ie).length > 0)) {
+      e.items = itemErrors;
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -83,10 +107,22 @@ export default function ComplaintForm() {
 
     setSubmitting(true);
     try {
+      const { date, district, outlet, customerName, contactNumber, address, invoiceNumber, complaintText, items } = form;
       const { data } = await client.post("/complaints", {
-        ...form,
-        batchNo: Number(form.batchNo),
-        code: Number(form.code),
+        date,
+        district,
+        outlet,
+        customerName,
+        contactNumber,
+        address,
+        invoiceNumber,
+        complaintText,
+        items: items.map((it) => ({
+          product: it.product,
+          batchNo: Number(it.batchNo),
+          quantity: it.quantity,
+          code: Number(it.code),
+        })),
       });
       setResult(data);
     } catch (err) {
@@ -122,7 +158,7 @@ export default function ComplaintForm() {
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => {
-                  setForm(emptyForm);
+                  setForm({ ...emptyForm, items: [newItem()] });
                   setResult(null);
                 }}
               >
@@ -218,55 +254,92 @@ export default function ComplaintForm() {
 
             <div className="section">
               <h3>Product details</h3>
-              <div className="grid grid-2">
-                <Field label="Invoice number" error={errors.invoiceNumber}>
-                  <input
-                    type="text"
-                    placeholder="Invoice / bill number"
-                    value={form.invoiceNumber}
-                    onChange={update("invoiceNumber")}
-                  />
-                </Field>
-                <Field label="Product" error={errors.product}>
-                  <select value={form.product} onChange={updateProduct}>
-                    <option value="">Select product</option>
-                    {PRODUCTS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+              <Field label="Invoice number" error={errors.invoiceNumber} hint="Covers every product below">
+                <input
+                  type="text"
+                  placeholder="Invoice / bill number"
+                  value={form.invoiceNumber}
+                  onChange={update("invoiceNumber")}
+                />
+              </Field>
+
+              <div className="items-list">
+                {form.items.map((item, index) => {
+                  const itemErr = errors.items?.[index] || {};
+                  const quantityOptions = item.product ? QUANTITIES_BY_PRODUCT[item.product] || [] : [];
+                  return (
+                    <div className="item-row" key={item.uid}>
+                      <div className="item-row-head">
+                        <span className="item-number">Product {index + 1}</span>
+                        {form.items.length > 1 && (
+                          <button
+                            type="button"
+                            className="item-remove"
+                            onClick={() => removeItem(index)}
+                            aria-label={`Remove product ${index + 1}`}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-2">
+                        <Field label="Product" error={itemErr.product}>
+                          <select value={item.product} onChange={updateItem(index, "product")}>
+                            <option value="">Select product</option>
+                            {PRODUCTS.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field
+                          label="Quantity"
+                          error={itemErr.quantity}
+                          hint={!item.product ? "Select a product first" : undefined}
+                        >
+                          <select
+                            value={item.quantity}
+                            onChange={updateItem(index, "quantity")}
+                            disabled={!item.product}
+                          >
+                            <option value="">
+                              {item.product ? "Select quantity" : "Select a product first"}
+                            </option>
+                            {quantityOptions.map((q) => (
+                              <option key={q} value={q}>
+                                {q}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="grid grid-2">
+                        <Field label="Batch no." error={itemErr.batchNo}>
+                          <input
+                            type="number"
+                            placeholder="Batch number"
+                            value={item.batchNo}
+                            onChange={updateItem(index, "batchNo")}
+                          />
+                        </Field>
+                        <Field label="Code" error={itemErr.code}>
+                          <input
+                            type="number"
+                            placeholder="Code"
+                            value={item.code}
+                            onChange={updateItem(index, "code")}
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="grid grid-3">
-                <Field label="Batch no." error={errors.batchNo}>
-                  <input
-                    type="number"
-                    placeholder="Batch number"
-                    value={form.batchNo}
-                    onChange={update("batchNo")}
-                  />
-                </Field>
-                <Field
-                  label="Quantity"
-                  error={errors.quantity}
-                  hint={!form.product ? "Select a product first" : undefined}
-                >
-                  <select value={form.quantity} onChange={update("quantity")} disabled={!form.product}>
-                    <option value="">
-                      {form.product ? "Select quantity" : "Select a product first"}
-                    </option>
-                    {quantityOptions.map((q) => (
-                      <option key={q} value={q}>
-                        {q}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Code" error={errors.code}>
-                  <input type="number" placeholder="Code" value={form.code} onChange={update("code")} />
-                </Field>
-              </div>
+
+              <button type="button" className="btn btn-ghost add-item-btn" onClick={addItem}>
+                + Add another product
+              </button>
             </div>
 
             <div className="section">
@@ -366,6 +439,46 @@ function FormStyles() {
       .field select:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+      .items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 18px;
+      }
+      .item-row {
+        background: rgba(15, 138, 128, 0.05);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 16px 16px 4px;
+      }
+      .item-row-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .item-number {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--teal-600);
+      }
+      .item-remove {
+        border: none;
+        background: none;
+        color: var(--status-danger);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 8px;
+      }
+      .item-remove:hover { text-decoration: underline; }
+      .add-item-btn {
+        margin-top: 4px;
+        width: 100%;
       }
       .form-actions {
         margin-top: 30px;

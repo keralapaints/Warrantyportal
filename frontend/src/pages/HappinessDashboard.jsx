@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import client from "../api/client";
+import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 const TABS = [
@@ -10,6 +10,11 @@ const TABS = [
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function productSummary(items) {
+  if (!items || items.length === 0) return "";
+  return items.map((it) => it.product).join(", ");
 }
 
 export default function HappinessDashboard() {
@@ -98,7 +103,7 @@ export default function HappinessDashboard() {
                 </div>
                 <p className="card-name">{c.customerName}</p>
                 <p className="card-meta">
-                  {c.product} · {c.district} · handled by{" "}
+                  {productSummary(c.items)} · {c.district} · handled by{" "}
                   {c.assignedTo?.name || c.assignedTo?.username || "—"}
                 </p>
                 {c.managerSubmission?.description && (
@@ -156,10 +161,20 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
         <h2>{complaint.customerName}</h2>
 
         <div className="detail-grid">
-          <Detail label="Product" value={complaint.product} />
-          <Detail label="Batch no." value={complaint.batchNo} />
           <Detail label="District / Outlet" value={`${complaint.district} / ${complaint.outlet}`} />
           <Detail label="Handled by" value={complaint.assignedTo?.name || complaint.assignedTo?.username} />
+        </div>
+
+        <span className="detail-label">Products</span>
+        <div className="items-table">
+          {(complaint.items || []).map((it, i) => (
+            <div className="item-line" key={i}>
+              <span className="item-line-product">{it.product}</span>
+              <span className="item-line-meta">
+                Qty {it.quantity} · Batch {it.batchNo} · Code {it.code}
+              </span>
+            </div>
+          ))}
         </div>
 
         <Detail label="Customer's complaint" value={complaint.complaintText} full />
@@ -169,7 +184,7 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
             <span className="detail-label">Manager's report</span>
             <p className="detail-value">{complaint.managerSubmission.description}</p>
             {complaint.managerSubmission.imageUrl && (
-              <img className="manager-photo" src={complaint.managerSubmission.imageUrl} alt="Manager submission" />
+              <img className="manager-photo" src={fileUrl(complaint.managerSubmission.imageUrl)} alt="Manager submission" />
             )}
           </div>
         )}
@@ -247,6 +262,10 @@ function HappinessStyles() {
       .detail-item.full { grid-column: 1 / -1; }
       .detail-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal-600); font-weight: 700; }
       .detail-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
+      .items-table { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+      .item-line { background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .item-line-product { font-weight: 700; font-size: 13.5px; color: var(--navy-900); }
+      .item-line-meta { font-size: 12px; color: var(--ink-muted); font-family: var(--font-mono); }
       .manager-note { margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--line); }
       .manager-photo { display: block; margin-top: 12px; max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
       .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--line); }
@@ -257,4 +276,4 @@ function HappinessStyles() {
       }
     `}</style>
   );
-}   
+}

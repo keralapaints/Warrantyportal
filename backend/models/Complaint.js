@@ -1,8 +1,6 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
 
-// Workflow: new -> assigned (admin assigns a manager) -> review (manager
-// submitted their description/photo) -> pending / solved (happiness manager decides)
 const STATUS_VALUES = ["new", "assigned", "review", "pending", "solved"];
 
 const statusHistorySchema = new mongoose.Schema(
@@ -11,6 +9,18 @@ const statusHistorySchema = new mongoose.Schema(
     changedAt: { type: Date, default: Date.now },
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     note: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
+// One product line within a complaint — a single complaint can cover
+// several products bought on the same invoice.
+const complaintItemSchema = new mongoose.Schema(
+  {
+    product: { type: String, required: true, trim: true },
+    batchNo: { type: Number, required: true },
+    quantity: { type: String, required: true, trim: true },
+    code: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -32,11 +42,16 @@ const complaintSchema = new mongoose.Schema(
     },
     address: { type: String, required: true, trim: true },
     invoiceNumber: { type: String, required: true, trim: true },
-    product: { type: String, required: true, trim: true },
-    batchNo: { type: Number, required: true },
-    quantity: { type: String, required: true, trim: true },
-    code: { type: Number, required: true },
     complaintText: { type: String, required: true, trim: true },
+
+    // One or more products being complained about on this invoice.
+    items: {
+      type: [complaintItemSchema],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
+        message: "Add at least one product.",
+      },
+    },
 
     // --- Workflow fields ---
     status: {
@@ -47,11 +62,9 @@ const complaintSchema = new mongoose.Schema(
     },
     statusHistory: { type: [statusHistorySchema], default: [] },
 
-    // Manager the admin assigned this complaint to
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null, index: true },
     assignedAt: { type: Date, default: null },
 
-    // What the manager submits after checking the complaint
     managerSubmission: {
       description: { type: String, trim: true, default: "" },
       imageUrl: { type: String, default: "" },
