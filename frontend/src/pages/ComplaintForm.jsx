@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
-import { DISTRICTS, OUTLETS, PRODUCTS, QUANTITIES } from "../data/options";
+import { DISTRICTS, OUTLETS_BY_DISTRICT, PRODUCTS, QUANTITIES } from "../data/options";
 
 const SWATCHES = ["#0f8a80", "#2f6fed", "#d97a13", "#12946f", "#0b1f3a"];
 
@@ -41,6 +41,14 @@ export default function ComplaintForm() {
   const [submitError, setSubmitError] = useState("");
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  function updateDistrict(e) {
+    // Changing district invalidates whatever outlet was picked, since
+    // outlet options depend on the district.
+    setForm((f) => ({ ...f, district: e.target.value, outlet: "" }));
+  }
+
+  const outletOptions = form.district ? OUTLETS_BY_DISTRICT[form.district] || [] : [];
 
   function validate() {
     const e = {};
@@ -144,7 +152,7 @@ export default function ComplaintForm() {
                   <input type="date" value={form.date} onChange={update("date")} max={todayISO()} />
                 </Field>
                 <Field label="District" error={errors.district}>
-                  <select value={form.district} onChange={update("district")}>
+                  <select value={form.district} onChange={updateDistrict}>
                     <option value="">Select district</option>
                     {DISTRICTS.map((d) => (
                       <option key={d} value={d}>
@@ -153,10 +161,16 @@ export default function ComplaintForm() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Outlet" error={errors.outlet}>
-                  <select value={form.outlet} onChange={update("outlet")}>
-                    <option value="">Select outlet</option>
-                    {OUTLETS.map((o) => (
+                <Field
+                  label="Outlet"
+                  error={errors.outlet}
+                  hint={!form.district ? "Select a district first" : undefined}
+                >
+                  <select value={form.outlet} onChange={update("outlet")} disabled={!form.district}>
+                    <option value="">
+                      {form.district ? "Select outlet" : "Select a district first"}
+                    </option>
+                    {outletOptions.map((o) => (
                       <option key={o} value={o}>
                         {o}
                       </option>
@@ -336,6 +350,10 @@ function FormStyles() {
       }
       .grid-2 { grid-template-columns: 1fr 1fr; }
       .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+      .field select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
       .form-actions {
         margin-top: 30px;
         display: flex;
