@@ -1,6 +1,5 @@
-// PLACEHOLDER for PRODUCTS and QUANTITIES — replace when you have the real lists.
-// DISTRICTS and OUTLETS_BY_DISTRICT below are real, from the outlet list you sent
-// (KERALA_PAINTS_GUEST_OUTLETS_LIST_02_09_2026.xlsx).
+// DISTRICTS and OUTLETS_BY_DISTRICT: real data, from KERALA_PAINTS_GUEST_OUTLETS_LIST_02_09_2026.xlsx
+// PRODUCTS and QUANTITIES_BY_PRODUCT: real data, from PRICE_LIST_EM___BASE.xlsx
 
 export const DISTRICTS = [
   "Thiruvananthapuram",
@@ -113,25 +112,81 @@ export const OUTLETS_BY_DISTRICT = {
   ],
 };
 
-// TODO: replace with the real Kerala Paints product list.
+// Products, in the order they appear on the price list.
 export const PRODUCTS = [
-  "Interior Emulsion",
-  "Exterior Emulsion",
-  "Enamel Paint",
-  "Primer",
-  "Wood Finish / Varnish",
-  "Putty",
-  "Distemper",
-  "Texture Coating",
+  "All in One",
+  "All in One RC 2",
+  "All in One RC 7",
+  "All in One RC 17",
+  "All in One RC 21",
+  "Silver In",
+  "Silver In SN 2",
+  "Silver Ex",
+  "Silver Ex SR 2",
+  "Silver Ex SR 7",
+  "Silver Ex SR 17",
+  "Silver Ex SR 21",
+  "Gold In",
+  "Gold In GN 02",
+  "Gold Ex",
+  "Gold Ex GX 2",
+  "Gold Ex GX 7",
+  "Gold Ex GX 17",
+  "Gold Ex GX 21",
+  "Gold Ex GX 16",
+  "Algae Wash",
+  "Aqua Seal",
+  "Cool Coat",
+  "Celing Plus",
+  "Floor Co Black, White, Smoke Grey, Terracota Red",
+  "Tile Co Terracota Red, Dark Grey, Sunrise, Brown",
+  "Foundation Black Special Grey Blurish Grey",
+  "Kitchen Plus",
+  "Prime Silver",
+  "Prime Gold",
+  "Prime  Platinum",
+  "Sealer Prime",
+  "Tough Seal",
+  "Metallic Gold, Silver, Bronze, Coppur, Meroon , Metal, Tile , Wood",
+  "Texture Fine, Spray",
 ];
 
-// TODO: replace with the real packaging sizes Kerala Paints sells.
-export const QUANTITIES = [
-  "1 Ltr",
-  "4 Ltr",
-  "10 Ltr",
-  "20 Ltr",
-  "1 Kg",
-  "5 Kg",
-  "10 Kg",
-];
+// Available pack sizes per product, so the Quantity dropdown only shows
+// sizes that product actually comes in.
+export const QUANTITIES_BY_PRODUCT = {
+  "All in One": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "All in One RC 2": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "All in One RC 7": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "All in One RC 17": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "All in One RC 21": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Silver In": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Silver In SN 2": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Silver Ex": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Silver Ex SR 2": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Silver Ex SR 7": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Silver Ex SR 17": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Silver Ex SR 21": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Gold In": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Gold In GN 02": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Gold Ex": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Gold Ex GX 2": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Gold Ex GX 7": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Gold Ex GX 17": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Gold Ex GX 21": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Gold Ex GX 16": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
+  "Algae Wash": ["10 Ltr", "4 Ltr", "1 Ltr"],
+  "Aqua Seal": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Cool Coat": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Celing Plus": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Floor Co Black, White, Smoke Grey, Terracota Red": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Tile Co Terracota Red, Dark Grey, Sunrise, Brown": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Foundation Black Special Grey Blurish Grey": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Kitchen Plus": ["4 Ltr", "1 Ltr"],
+  "Prime Silver": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Prime Gold": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Prime  Platinum": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Sealer Prime": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Tough Seal": ["20 Ltr", "10 Ltr", "4 Ltr", "1 Ltr"],
+  "Metallic Gold, Silver, Bronze, Coppur, Meroon , Metal, Tile , Wood": ["10 Ltr", "4 Ltr", "1 Ltr", "500 ml", "200 ml"],
+  "Texture Fine, Spray": ["30 KG", "15 KG", "5 KG"],
+};

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
-import { DISTRICTS, OUTLETS_BY_DISTRICT, PRODUCTS, QUANTITIES } from "../data/options";
+import { DISTRICTS, OUTLETS_BY_DISTRICT, PRODUCTS, QUANTITIES_BY_PRODUCT } from "../data/options";
 
 const SWATCHES = ["#0f8a80", "#2f6fed", "#d97a13", "#12946f", "#0b1f3a"];
 
@@ -48,7 +48,14 @@ export default function ComplaintForm() {
     setForm((f) => ({ ...f, district: e.target.value, outlet: "" }));
   }
 
+  function updateProduct(e) {
+    // Changing product invalidates whatever quantity was picked, since
+    // pack sizes differ per product.
+    setForm((f) => ({ ...f, product: e.target.value, quantity: "" }));
+  }
+
   const outletOptions = form.district ? OUTLETS_BY_DISTRICT[form.district] || [] : [];
+  const quantityOptions = form.product ? QUANTITIES_BY_PRODUCT[form.product] || [] : [];
 
   function validate() {
     const e = {};
@@ -221,7 +228,7 @@ export default function ComplaintForm() {
                   />
                 </Field>
                 <Field label="Product" error={errors.product}>
-                  <select value={form.product} onChange={update("product")}>
+                  <select value={form.product} onChange={updateProduct}>
                     <option value="">Select product</option>
                     {PRODUCTS.map((p) => (
                       <option key={p} value={p}>
@@ -240,10 +247,16 @@ export default function ComplaintForm() {
                     onChange={update("batchNo")}
                   />
                 </Field>
-                <Field label="Quantity" error={errors.quantity}>
-                  <select value={form.quantity} onChange={update("quantity")}>
-                    <option value="">Select quantity</option>
-                    {QUANTITIES.map((q) => (
+                <Field
+                  label="Quantity"
+                  error={errors.quantity}
+                  hint={!form.product ? "Select a product first" : undefined}
+                >
+                  <select value={form.quantity} onChange={update("quantity")} disabled={!form.product}>
+                    <option value="">
+                      {form.product ? "Select quantity" : "Select a product first"}
+                    </option>
+                    {quantityOptions.map((q) => (
                       <option key={q} value={q}>
                         {q}
                       </option>
