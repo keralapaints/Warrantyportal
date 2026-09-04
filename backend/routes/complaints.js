@@ -1,5 +1,6 @@
 const express = require("express");
 const Complaint = require("../models/Complaint");
+const WarrantyRegistration = require("../models/WarrantyRegistration");
 const Admin = require("../models/Admin");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const upload = require("../middleware/upload");
@@ -17,10 +18,26 @@ const PUBLIC_FIELDS = [
   "complaintText",
 ];
 
-// POST /api/complaints — customer submits a new complaint. No auth required.
+// POST /api/complaints — customer files a warranty claim. No auth required,
+// but a valid warrantyToken from a real registration is mandatory — this
+// is enforced here, not just hidden in the UI.
 router.post("/", async (req, res) => {
   try {
-    const payload = {};
+    const { warrantyToken } = req.body;
+    if (!warrantyToken) {
+      return res.status(400).json({ message: "A warranty registration is required to file a claim." });
+    }
+
+    const registration = await WarrantyRegistration.findOne({
+      token: warrantyToken.trim().toUpperCase(),
+    });
+    if (!registration) {
+      return res.status(400).json({
+        message: "We couldn't verify that warranty registration. Please register your product first.",
+      });
+    }
+
+    const payload = { warrantyToken: registration.token };
     for (const field of PUBLIC_FIELDS) {
       if (req.body[field] !== undefined) payload[field] = req.body[field];
     }
@@ -37,7 +54,7 @@ router.post("/", async (req, res) => {
     const complaint = await Complaint.create(payload);
 
     res.status(201).json({
-      message: "Complaint submitted successfully.",
+      message: "Claim submitted successfully.",
       token: complaint.token,
       status: complaint.status,
     });
@@ -53,14 +70,13 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/complaints/track/:token — customer checks their own complaint status. No auth required.
 router.get("/track/:token", async (req, res) => {
   try {
     const complaint = await Complaint.findOne({ token: req.params.token.toUpperCase() }).select(
       "token status date items createdAt updatedAt"
     );
     if (!complaint) {
-      return res.status(404).json({ message: "No complaint found with that token." });
+      return res.status(404).json({ message: "No claim found with that token." });
     }
     res.json(complaint);
   } catch (err) {
@@ -69,7 +85,6 @@ router.get("/track/:token", async (req, res) => {
   }
 });
 
-// --- Everything below requires login ---
 router.use(requireAdmin);
 
 router.get("/", async (req, res) => {
@@ -89,6 +104,7 @@ router.get("/", async (req, res) => {
         { invoiceNumber: re },
         { district: re },
         { outlet: re },
+        { warrantyToken: re },
       ];
     }
 

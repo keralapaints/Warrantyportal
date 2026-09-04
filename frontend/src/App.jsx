@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import ComplaintForm from "./pages/ComplaintForm.jsx";
+import Home from "./pages/Home.jsx";
+import WarrantyPolicy from "./pages/WarrantyPolicy.jsx";
+import WarrantyRegister from "./pages/WarrantyRegister.jsx";
+import WarrantyClaim from "./pages/WarrantyClaim.jsx";
 import TrackComplaint from "./pages/TrackComplaint.jsx";
 import AdminLogin from "./pages/AdminLogin.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
@@ -10,7 +13,10 @@ import RequireAuth from "./components/RequireAuth.jsx";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<ComplaintForm />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/warranty-policy" element={<WarrantyPolicy />} />
+      <Route path="/warranty/register" element={<WarrantyRegister />} />
+      <Route path="/claim" element={<WarrantyClaim />} />
       <Route path="/track" element={<TrackComplaint />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route

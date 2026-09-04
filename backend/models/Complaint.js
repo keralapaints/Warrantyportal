@@ -13,8 +13,6 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
-// One product line within a complaint — a single complaint can cover
-// several products bought on the same invoice.
 const complaintItemSchema = new mongoose.Schema(
   {
     product: { type: String, required: true, trim: true },
@@ -29,7 +27,9 @@ const complaintSchema = new mongoose.Schema(
   {
     token: { type: String, unique: true, index: true },
 
-    // --- Complaint form fields ---
+    // Links this claim back to the warranty registration that authorized it.
+    warrantyToken: { type: String, required: true, trim: true, uppercase: true, index: true },
+
     date: { type: Date, required: true, default: Date.now },
     district: { type: String, required: true, trim: true },
     outlet: { type: String, required: true, trim: true },
@@ -44,7 +44,6 @@ const complaintSchema = new mongoose.Schema(
     invoiceNumber: { type: String, required: true, trim: true },
     complaintText: { type: String, required: true, trim: true },
 
-    // One or more products being complained about on this invoice.
     items: {
       type: [complaintItemSchema],
       validate: {
@@ -53,7 +52,6 @@ const complaintSchema = new mongoose.Schema(
       },
     },
 
-    // --- Workflow fields ---
     status: {
       type: String,
       enum: STATUS_VALUES,
