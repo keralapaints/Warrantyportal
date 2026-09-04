@@ -18,9 +18,6 @@ const PUBLIC_FIELDS = [
   "complaintText",
 ];
 
-// POST /api/complaints — customer files a warranty claim. No auth required,
-// but a valid warrantyToken from a real registration is mandatory — this
-// is enforced here, not just hidden in the UI.
 router.post("/", async (req, res) => {
   try {
     const { warrantyToken } = req.body;
@@ -43,12 +40,7 @@ router.post("/", async (req, res) => {
     }
 
     if (Array.isArray(req.body.items)) {
-      payload.items = req.body.items.map((it) => ({
-        product: it.product,
-        batchNo: Number(it.batchNo),
-        quantity: it.quantity,
-        code: Number(it.code),
-      }));
+      payload.items = req.body.items;
     }
 
     const complaint = await Complaint.create(payload);

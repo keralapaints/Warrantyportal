@@ -19,7 +19,7 @@ export const DISTRICTS = [
   "Mahe",
   "Tamil Nadu",
 ];
-
+export const STATES = ["Kerala", "Tamil Nadu", "Karnataka", "Andhra Pradesh"];
 // Outlets grouped by district, so the outlet dropdown only shows outlets
 // that actually belong to the selected district.
 export const OUTLETS_BY_DISTRICT = {

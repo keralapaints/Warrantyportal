@@ -13,12 +13,16 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
+// Mirrors the warranty registration's item shape — claims are filed
+// against specific registered product lines, copied over as-is.
 const complaintItemSchema = new mongoose.Schema(
   {
     product: { type: String, required: true, trim: true },
-    batchNo: { type: Number, required: true },
-    quantity: { type: String, required: true, trim: true },
-    code: { type: Number, required: true },
+    packSize: { type: String, required: true, trim: true },
+    containers: { type: Number, required: true },
+    totalQuantity: { type: String, trim: true, default: "" },
+    batchNumbers: { type: [String], default: [] },
+    shadeType: { type: String, default: "" },
   },
   { _id: false }
 );
@@ -26,8 +30,6 @@ const complaintItemSchema = new mongoose.Schema(
 const complaintSchema = new mongoose.Schema(
   {
     token: { type: String, unique: true, index: true },
-
-    // Links this claim back to the warranty registration that authorized it.
     warrantyToken: { type: String, required: true, trim: true, uppercase: true, index: true },
 
     date: { type: Date, required: true, default: Date.now },
@@ -48,7 +50,7 @@ const complaintSchema = new mongoose.Schema(
       type: [complaintItemSchema],
       validate: {
         validator: (arr) => Array.isArray(arr) && arr.length > 0,
-        message: "Add at least one product.",
+        message: "Select at least one product.",
       },
     },
 
