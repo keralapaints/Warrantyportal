@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
-import { DISTRICTS, OUTLETS_BY_DISTRICT, PRODUCTS, QUANTITIES_BY_PRODUCT, STATES } from "../data/options";
+import {
+  DISTRICTS,
+  OUTLETS_BY_DISTRICT,
+  PRODUCTS,
+  QUANTITIES_BY_PRODUCT,
+  WARRANTY_YEARS_BY_PRODUCT,
+  STATES,
+} from "../data/options";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const YES_NO_UNKNOWN = ["Yes", "No", "Not Known"];
@@ -92,13 +99,10 @@ export default function WarrantyRegister() {
     };
   }
 
-  // "+ Add another product" — a fresh, fully blank line.
   function addItem() {
     setForm((f) => ({ ...f, items: [...f.items, newItem()] }));
   }
 
-  // "+ Add pack size" on an existing row — same product, pre-filled, so the
-  // customer doesn't have to re-pick the product for a second pack size of it.
   function addPackSizeFor(index) {
     setForm((f) => {
       const product = f.items[index].product;
@@ -378,6 +382,7 @@ export default function WarrantyRegister() {
                 {form.items.map((item, index) => {
                   const ie = errors.items?.[index] || {};
                   const packOptions = item.product ? QUANTITIES_BY_PRODUCT[item.product] || [] : [];
+                  const warrantyLabel = item.product ? WARRANTY_YEARS_BY_PRODUCT[item.product] : "";
                   return (
                     <div className="item-row" key={item.uid}>
                       <div className="item-row-head">
@@ -400,6 +405,13 @@ export default function WarrantyRegister() {
                           </select>
                         </Field>
                       </div>
+
+                      {warrantyLabel && (
+                        <div className="warranty-chip">
+                          Warranty on this product: <strong>{warrantyLabel}</strong>
+                        </div>
+                      )}
+
                       <div className="grid grid-2">
                         <Field label="Number of containers" error={ie.containers}>
                           <input type="number" min="1" value={item.containers} onChange={updateItem(index, "containers")} />
@@ -417,11 +429,7 @@ export default function WarrantyRegister() {
                       </Field>
 
                       {item.product && (
-                        <button
-                          type="button"
-                          className="add-packsize-btn"
-                          onClick={() => addPackSizeFor(index)}
-                        >
+                        <button type="button" className="add-packsize-btn" onClick={() => addPackSizeFor(index)}>
                           + Add pack size for {item.product}
                         </button>
                       )}
@@ -622,6 +630,10 @@ function FormStyles() {
         cursor: pointer; padding: 8px 0 12px; text-align: left;
       }
       .add-packsize-btn:hover { text-decoration: underline; }
+      .warranty-chip {
+        display: inline-block; margin: -4px 0 14px; padding: 6px 12px; border-radius: 999px;
+        background: rgba(15,138,128,0.12); color: var(--teal-600); font-size: 12px; font-weight: 600;
+      }
       .surface-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
       .declarations-list { display: flex; flex-direction: column; gap: 10px; }
       .decl-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; cursor: pointer; }

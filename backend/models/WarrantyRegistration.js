@@ -3,13 +3,12 @@ const Counter = require("./Counter");
 
 const YES_NO_UNKNOWN = ["Yes", "No", "Not Known"];
 
-// One product line — repeatable, matches "Product" section of the spec.
 const warrantyItemSchema = new mongoose.Schema(
   {
     product: { type: String, required: true, trim: true },
     packSize: { type: String, required: true, trim: true },
     containers: { type: Number, required: true, min: 1 },
-    totalQuantity: { type: String, trim: true, default: "" }, // display string, e.g. "80 Ltr"
+    totalQuantity: { type: String, trim: true, default: "" },
     batchNumbers: {
       type: [String],
       validate: {
@@ -18,14 +17,17 @@ const warrantyItemSchema = new mongoose.Schema(
       },
     },
     shadeType: { type: String, enum: ["White", "Tinted Shade"], required: true },
+    // Snapshotted at registration time from the product master, e.g. "7 YEARS" —
+    // so a later change to the master never alters an already-registered warranty.
+    warrantyPeriod: { type: String, trim: true, default: "" },
   },
   { _id: false }
 );
 
 const warrantyRegistrationSchema = new mongoose.Schema(
   {
-    token: { type: String, unique: true, index: true }, // Application Reference Number
-    warrantyNumber: { type: String, default: null }, // set only on approval — not implemented yet
+    token: { type: String, unique: true, index: true },
+    warrantyNumber: { type: String, default: null },
 
     status: {
       type: String,
@@ -34,7 +36,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
     },
     rejectionReason: { type: String, trim: true, default: "" },
 
-    // --- Customer ---
     customerName: { type: String, required: true, trim: true, minlength: 2 },
     mobileNumber: {
       type: String,
@@ -51,7 +52,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
     },
     alternateMobile: { type: String, trim: true, default: "" },
 
-    // --- Site ---
     siteName: { type: String, required: true, trim: true },
     houseNo: { type: String, trim: true, default: "" },
     street: { type: String, required: true, trim: true },
@@ -67,14 +67,12 @@ const warrantyRegistrationSchema = new mongoose.Schema(
     paintingType: { type: String, enum: ["New Building", "Repainting"], required: true },
     buildingAge: { type: Number, default: null },
 
-    // --- Purchase ---
     purchaseDate: { type: Date, required: true },
     invoiceNumber: { type: String, required: true, trim: true, index: true },
     purchaseState: { type: String, required: true, trim: true },
     purchaseDistrict: { type: String, required: true, trim: true },
     outlet: { type: String, required: true, trim: true },
 
-    // --- Product (repeatable) ---
     items: {
       type: [warrantyItemSchema],
       validate: {
@@ -83,7 +81,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
       },
     },
 
-    // --- Application ---
     paintingStartDate: { type: Date, required: true },
     paintingCompletionDate: { type: Date, required: true },
     applicationArea: { type: String, enum: ["Interior", "Exterior", "Both"], required: true },
@@ -98,7 +95,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
       match: [/^[0-9+\-\s]{7,15}$/, "Enter a valid mobile number"],
     },
 
-    // --- Painting system ---
     puttyUsed: { type: String, enum: ["Yes", "No"], required: true },
     puttyBrand: { type: String, trim: true, default: "" },
     primerUsed: { type: String, enum: ["Yes", "No"], required: true },
@@ -108,7 +104,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
     baseCoatUsed: { type: String, enum: ["Yes", "No", ""], default: "" },
     baseCoatDetails: { type: String, trim: true, default: "" },
 
-    // --- Surface condition at time of painting ---
     surfaceCondition: {
       waterLeakageBefore: { type: String, enum: YES_NO_UNKNOWN, required: true },
       dampnessRisingDamp: { type: String, enum: YES_NO_UNKNOWN, required: true },
@@ -120,7 +115,6 @@ const warrantyRegistrationSchema = new mongoose.Schema(
       plumbingLeakage: { type: String, enum: YES_NO_UNKNOWN, required: true },
     },
 
-    // --- Declarations ---
     declarations: {
       infoAccurate: { type: Boolean, required: true },
       applicationAccurate: { type: Boolean, required: true },

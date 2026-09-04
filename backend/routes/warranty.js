@@ -1,10 +1,11 @@
 const express = require("express");
 const WarrantyRegistration = require("../models/WarrantyRegistration");
 const { requireAdmin } = require("../middleware/auth");
+const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 
 const router = express.Router();
 
-const REGISTRATION_WINDOW_DAYS = 15; // spec: "Registration is outside the permitted 15-day registration period"
+const REGISTRATION_WINDOW_DAYS = 15;
 
 const TOP_LEVEL_FIELDS = [
   "customerName", "mobileNumber", "email", "customerType", "alternateMobile",
@@ -17,27 +18,18 @@ const TOP_LEVEL_FIELDS = [
   "baseCoatUsed", "baseCoatDetails",
 ];
 
-// POST /api/warranty/register — customer registers a purchase. No auth required.
 router.post("/register", async (req, res) => {
   try {
     const { items, surfaceCondition, declarations } = req.body;
 
-    // --- Blocking validations from the spec's Validation Logic sheet ---
-
-    // Row 9: mandatory declarations must all be accepted (marketingConsent excluded).
     const requiredDecls = [
-      "infoAccurate",
-      "applicationAccurate",
-      "policyAccepted",
-      "eligibilityUnderstood",
-      "inspectionAccess",
-      "privacyConsent",
+      "infoAccurate", "applicationAccurate", "policyAccepted",
+      "eligibilityUnderstood", "inspectionAccess", "privacyConsent",
     ];
     if (!declarations || requiredDecls.some((key) => declarations[key] !== true)) {
       return res.status(400).json({ message: "All mandatory declarations must be accepted." });
     }
 
-    // Row 7 / product schema: batch number is mandatory per product line.
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Add at least one product." });
     }
@@ -45,7 +37,16 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Enter at least one batch number for every product." });
     }
 
-    // Row 4: registration must be within the permitted window of the purchase date.
+    // Rule 1: only products on the master list carry a declared warranty —
+    // reject anything else outright, even if someone bypasses the dropdown
+    // and calls this endpoint directly.
+    const invalidProduct = items.find((it) => !PRODUCTS.includes(it.product));
+    if (invalidProduct) {
+      return res.status(400).json({
+        message: `"${invalidProduct.product}" is not a Kerala Paints warranty-eligible product.`,
+      });
+    }
+
     if (req.body.purchaseDate) {
       const purchaseDate = new Date(req.body.purchaseDate);
       const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -56,14 +57,12 @@ router.post("/register", async (req, res) => {
       }
     }
 
-    // Row 12: application dates cannot precede the purchase date.
     if (req.body.paintingStartDate && req.body.purchaseDate) {
       if (new Date(req.body.paintingStartDate) < new Date(req.body.purchaseDate)) {
         return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
       }
     }
 
-    // Row 13: duplicate invoice + product + site detection.
     if (req.body.invoiceNumber && req.body.siteName && Array.isArray(items)) {
       const productNames = items.map((it) => it.product).filter(Boolean);
       const existing = await WarrantyRegistration.findOne({
@@ -100,6 +99,7 @@ router.post("/register", async (req, res) => {
         totalQuantity,
         batchNumbers: it.batchNumbers,
         shadeType: it.shadeType,
+        warrantyPeriod: WARRANTY_YEARS_BY_PRODUCT[it.product] || "",
       };
     });
 
@@ -126,7 +126,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// GET /api/warranty/verify?invoiceNumber=..&contactNumber=..
 router.get("/verify", async (req, res) => {
   try {
     const { invoiceNumber, contactNumber } = req.query;
@@ -168,7 +167,6 @@ router.get("/verify", async (req, res) => {
   }
 });
 
-// --- Admin-only below (for a future warranty admin/approval view) ---
 router.use(requireAdmin);
 
 router.get("/", async (req, res) => {
