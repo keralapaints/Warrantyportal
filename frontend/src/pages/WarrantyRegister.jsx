@@ -7,9 +7,9 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const YES_NO_UNKNOWN = ["Yes", "No", "Not Known"];
 
 let itemUid = 0;
-const newItem = () => ({
+const newItem = (presetProduct = "") => ({
   uid: itemUid++,
-  product: "",
+  product: presetProduct,
   packSize: "",
   containers: "",
   batchNumbersText: "",
@@ -91,9 +91,23 @@ export default function WarrantyRegister() {
       }));
     };
   }
+
+  // "+ Add another product" — a fresh, fully blank line.
   function addItem() {
     setForm((f) => ({ ...f, items: [...f.items, newItem()] }));
   }
+
+  // "+ Add pack size" on an existing row — same product, pre-filled, so the
+  // customer doesn't have to re-pick the product for a second pack size of it.
+  function addPackSizeFor(index) {
+    setForm((f) => {
+      const product = f.items[index].product;
+      const copy = [...f.items];
+      copy.splice(index + 1, 0, newItem(product));
+      return { ...f, items: copy };
+    });
+  }
+
   function removeItem(index) {
     setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
   }
@@ -138,6 +152,13 @@ export default function WarrantyRegister() {
     if (!form.paintingCompletionDate) e.paintingCompletionDate = "Select the completion date.";
     if (form.paintingStartDate && form.purchaseDate && form.paintingStartDate < form.purchaseDate) {
       e.paintingStartDate = "Cannot be before the purchase date.";
+    }
+    if (
+      form.paintingCompletionDate &&
+      form.paintingStartDate &&
+      form.paintingCompletionDate < form.paintingStartDate
+    ) {
+      e.paintingCompletionDate = "Completion date cannot be before the painting start date.";
     }
     if (!form.applicationArea) e.applicationArea = "Select interior, exterior, or both.";
     if (!form.paintedAreaSqft || Number(form.paintedAreaSqft) <= 0) e.paintedAreaSqft = "Enter the painted area.";
@@ -394,6 +415,16 @@ export default function WarrantyRegister() {
                       <Field label="Batch number(s)" error={ie.batchNumbersText} hint="Separate multiple batch numbers with commas">
                         <input type="text" placeholder="e.g. B4471, B4472" value={item.batchNumbersText} onChange={updateItem(index, "batchNumbersText")} />
                       </Field>
+
+                      {item.product && (
+                        <button
+                          type="button"
+                          className="add-packsize-btn"
+                          onClick={() => addPackSizeFor(index)}
+                        >
+                          + Add pack size for {item.product}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -586,6 +617,11 @@ function FormStyles() {
       .item-number { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--teal-600); }
       .item-remove { border: none; background: none; color: var(--status-danger); font-size: 12px; font-weight: 600; cursor: pointer; }
       .add-item-btn { margin-top: 16px; width: 100%; }
+      .add-packsize-btn {
+        border: none; background: none; color: var(--teal-600); font-size: 12px; font-weight: 600;
+        cursor: pointer; padding: 8px 0 12px; text-align: left;
+      }
+      .add-packsize-btn:hover { text-decoration: underline; }
       .surface-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
       .declarations-list { display: flex; flex-direction: column; gap: 10px; }
       .decl-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; cursor: pointer; }
