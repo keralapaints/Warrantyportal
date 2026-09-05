@@ -16,7 +16,7 @@ app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => res.json({ ok: true, otpRoutesLoaded: true, checkedAt: new Date().toISOString() }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
