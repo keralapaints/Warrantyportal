@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_ADDRESS = process.env.RESEND_FROM || "Kerala Paints <onboarding@resend.dev>";
 
 async function sendOtpEmail(email, otp) {
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `${otp} is your Kerala Paints verification code`,
@@ -24,6 +24,16 @@ async function sendOtpEmail(email, otp) {
       </div>
     `,
   });
+
+  // The Resend SDK never throws on API errors — it always resolves with
+  // { data, error }. Without this check, a bad API key or unverified sender
+  // would silently "succeed" while no email was ever actually sent.
+  if (error) {
+    console.error("Resend error:", error);
+    throw new Error(error.message || "Failed to send email via Resend");
+  }
+
+  return data;
 }
 
 module.exports = { sendOtpEmail };
