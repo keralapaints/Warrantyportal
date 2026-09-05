@@ -1,5 +1,6 @@
 const express = require("express");
 const WarrantyRegistration = require("../models/WarrantyRegistration");
+const OtpVerification = require("../models/OtpVerification");
 const { requireAdmin } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 
@@ -18,7 +19,15 @@ const TOP_LEVEL_FIELDS = [
 
 router.post("/register", async (req, res) => {
   try {
-    const { items, applications, surfaceCondition, declarations } = req.body;
+    const { items, applications, surfaceCondition, declarations, email } = req.body;
+
+    // Email must have gone through the OTP flow and been verified before
+    // a registration can be created — enforced here, not just in the UI.
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const otpRecord = await OtpVerification.findOne({ email: normalizedEmail });
+    if (!otpRecord || !otpRecord.verified) {
+      return res.status(400).json({ message: "Please verify your email before submitting." });
+    }
 
     const requiredDecls = [
       "infoAccurate", "applicationAccurate", "policyAccepted",
@@ -46,9 +55,6 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Add at least one application entry." });
     }
 
-    // Forward-only date chain: purchase date -> painting start -> painting
-    // completion, for every application entry. Checked server-side so the
-    // rule can't be skipped by calling the API directly.
     if (req.body.purchaseDate) {
       const purchaseDate = new Date(req.body.purchaseDate);
 
@@ -56,8 +62,13 @@ router.post("/register", async (req, res) => {
         (a) => a.paintingStartDate && new Date(a.paintingStartDate) < purchaseDate
       );
       if (beforePurchase) {
+        return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
+      }
+
+      const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince > REGISTRATION_WINDOW_DAYS) {
         return res.status(400).json({
-          message: "Painting start date cannot be before the purchase date.",
+          message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
         });
       }
     }
@@ -84,16 +95,6 @@ router.post("/register", async (req, res) => {
       if (existing) {
         return res.status(409).json({
           message: "This invoice and site combination already has a registration on file.",
-        });
-      }
-    }
-
-    if (req.body.purchaseDate) {
-      const purchaseDate = new Date(req.body.purchaseDate);
-      const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSince > REGISTRATION_WINDOW_DAYS) {
-        return res.status(400).json({
-          message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
         });
       }
     }
@@ -140,6 +141,9 @@ router.post("/register", async (req, res) => {
     payload.declarationAcceptedAt = new Date();
 
     const registration = await WarrantyRegistration.create(payload);
+
+    // Clean up the OTP record now that it's served its purpose.
+    await OtpVerification.deleteOne({ email: normalizedEmail });
 
     res.status(201).json({
       message: "Registration submitted successfully.",

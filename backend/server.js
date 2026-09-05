@@ -6,6 +6,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
 const complaintRoutes = require("./routes/complaints");
 const warrantyRoutes = require("./routes/warranty");
+const otpRoutes = require("./routes/otp");
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/warranty", otpRoutes);
 app.use("/api/warranty", warrantyRoutes);
 
 app.use((err, req, res, next) => {

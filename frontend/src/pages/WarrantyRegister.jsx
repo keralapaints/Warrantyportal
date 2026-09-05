@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
 import {
@@ -87,6 +87,64 @@ export default function WarrantyRegister() {
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState("");
 
+  // --- Email OTP state ---
+  const [otpStep, setOtpStep] = useState("idle"); // idle | sent | verified
+  const [otp, setOtp] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  function updateEmail(e) {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, email: value }));
+    // Changing the email invalidates any previous verification for the old one.
+    setOtpStep("idle");
+    setOtp("");
+    setOtpError("");
+  }
+
+  async function sendOtp() {
+    setOtpError("");
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      setOtpError("Enter a valid email first.");
+      return;
+    }
+    setOtpSending(true);
+    try {
+      await client.post("/warranty/send-otp", { email: form.email.trim() });
+      setOtpStep("sent");
+      setResendCooldown(60);
+    } catch (err) {
+      setOtpError(err.response?.data?.message || "Could not send the code. Please try again.");
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setOtpError("");
+    if (!otp.trim()) {
+      setOtpError("Enter the code sent to your email.");
+      return;
+    }
+    setOtpVerifying(true);
+    try {
+      await client.post("/warranty/verify-otp", { email: form.email.trim(), otp: otp.trim() });
+      setOtpStep("verified");
+    } catch (err) {
+      setOtpError(err.response?.data?.message || "Incorrect code. Please try again.");
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
+
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const updateNested = (group, key) => (e) =>
     setForm((f) => ({ ...f, [group]: { ...f[group], [key]: e.target.value } }));
@@ -148,6 +206,7 @@ export default function WarrantyRegister() {
     if (form.customerName.trim().length < 2) e.customerName = "Enter your full name.";
     if (!/^[0-9+\-\s]{7,15}$/.test(form.mobileNumber.trim())) e.mobileNumber = "Enter a valid mobile number.";
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = "Enter a valid email.";
+    else if (otpStep !== "verified") e.email = "Verify your email with the code sent to it.";
     if (!form.customerType) e.customerType = "Select a customer type.";
 
     if (!form.siteName.trim()) e.siteName = "Enter the site / building name.";
@@ -306,10 +365,70 @@ export default function WarrantyRegister() {
                   <input type="tel" value={form.mobileNumber} onChange={update("mobileNumber")} />
                 </Field>
               </div>
-              <div className="grid grid-2">
-                <Field label="Email ID" error={errors.email} hint="Registration confirmation is sent here">
-                  <input type="email" value={form.email} onChange={update("email")} />
-                </Field>
+
+              <div className="field">
+                <label>Email ID</label>
+                <div className="email-row">
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={updateEmail}
+                    readOnly={otpStep === "verified"}
+                    className={otpStep === "verified" ? "verified-input" : ""}
+                  />
+                  {otpStep !== "verified" && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost otp-send-btn"
+                      onClick={sendOtp}
+                      disabled={otpSending || resendCooldown > 0}
+                    >
+                      {otpStep === "sent"
+                        ? resendCooldown > 0
+                          ? `Resend in ${resendCooldown}s`
+                          : "Resend code"
+                        : otpSending
+                        ? "Sending…"
+                        : "Send code"}
+                    </button>
+                  )}
+                  {otpStep === "verified" && <span className="verified-badge">✓ Verified</span>}
+                </div>
+
+                {otpStep === "sent" && (
+                  <div className="otp-input-row">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="otp-code-input"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={verifyOtp}
+                      disabled={otpVerifying}
+                    >
+                      {otpVerifying ? "Verifying…" : "Verify"}
+                    </button>
+                  </div>
+                )}
+
+                {otpError && <span className="error-text">{otpError}</span>}
+                {errors.email && otpStep !== "sent" && <span className="error-text">{errors.email}</span>}
+                {!otpError && !errors.email && (
+                  <span className="hint">
+                    {otpStep === "verified"
+                      ? "Registration confirmation will be sent here."
+                      : "We'll send a 6-digit code to confirm this is your email."}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-2" style={{ marginTop: 14 }}>
                 <Field label="Customer type" error={errors.customerType}>
                   <select value={form.customerType} onChange={update("customerType")}>
                     <option value="">Select</option>
@@ -318,10 +437,10 @@ export default function WarrantyRegister() {
                     ))}
                   </select>
                 </Field>
+                <Field label="Alternate mobile number" hint="Optional">
+                  <input type="tel" value={form.alternateMobile} onChange={update("alternateMobile")} />
+                </Field>
               </div>
-              <Field label="Alternate mobile number" hint="Optional">
-                <input type="tel" value={form.alternateMobile} onChange={update("alternateMobile")} />
-              </Field>
             </div>
 
             {/* --- Site --- */}
@@ -716,9 +835,26 @@ function FormStyles() {
       .submit-error.top { margin-top: 16px; margin-bottom: 0; }
       .token-badge-lg { font-size: 19px; padding: 12px 22px; margin: 18px 0 12px; }
       .confirm-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+      .email-row { display: flex; gap: 8px; align-items: stretch; }
+      .email-row input { flex: 1; }
+      .otp-send-btn { white-space: nowrap; font-size: 12.5px; padding: 0 16px; }
+      .verified-input { background: rgba(15,138,128,0.06); border-color: rgba(15,138,128,0.35) !important; }
+      .verified-badge {
+        display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; font-weight: 700;
+        color: var(--teal-600); white-space: nowrap;
+      }
+      .otp-input-row { display: flex; gap: 8px; margin-top: 10px; }
+      .otp-code-input {
+        flex: 1; font-family: var(--font-mono); font-size: 18px; letter-spacing: 4px; text-align: center;
+        padding: 10px 14px; border-radius: 9px; border: 1.5px solid var(--line);
+      }
+
       @media (max-width: 640px) {
         .grid-2, .grid-3, .surface-grid { grid-template-columns: 1fr; }
         .form-card, .confirm-card { padding: 28px 20px 24px; }
+        .email-row { flex-direction: column; }
+        .verified-badge { padding: 6px 0 0; }
       }
     `}</style>
   );
