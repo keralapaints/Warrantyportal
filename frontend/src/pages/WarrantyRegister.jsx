@@ -23,6 +23,19 @@ const newItem = (presetProduct = "") => ({
   shadeType: "",
 });
 
+let appUid = 0;
+const newApplication = () => ({
+  uid: appUid++,
+  paintingStartDate: "",
+  paintingCompletionDate: "",
+  applicationArea: "",
+  paintedAreaSqft: "",
+  topcoats: "",
+  applicationMethod: "",
+  painterName: "",
+  painterMobile: "",
+});
+
 const SURFACE_QUESTIONS = [
   { key: "waterLeakageBefore", label: "Known water leakage before painting?" },
   { key: "dampnessRisingDamp", label: "Known dampness / rising damp?" },
@@ -49,8 +62,7 @@ const emptyForm = {
   pincode: "", propertyType: "", paintingType: "", buildingAge: "",
   purchaseDate: todayISO(), invoiceNumber: "", purchaseState: "Kerala", purchaseDistrict: "", outlet: "",
   items: [newItem()],
-  paintingStartDate: "", paintingCompletionDate: "", applicationArea: "", paintedAreaSqft: "", topcoats: "",
-  applicationMethod: "", painterName: "", painterMobile: "",
+  applications: [newApplication()],
   puttyUsed: "", puttyBrand: "", primerUsed: "", primerBrand: "", primerProductName: "", primerCoats: "",
   baseCoatUsed: "", baseCoatDetails: "",
   surfaceCondition: { waterLeakageBefore: "", dampnessRisingDamp: "", structuralCracks: "", loosePlaster: "", existingPeeling: "", efflorescence: "", fungusAlgae: "", plumbingLeakage: "" },
@@ -98,11 +110,9 @@ export default function WarrantyRegister() {
       }));
     };
   }
-
   function addItem() {
     setForm((f) => ({ ...f, items: [...f.items, newItem()] }));
   }
-
   function addPackSizeFor(index) {
     setForm((f) => {
       const product = f.items[index].product;
@@ -111,9 +121,24 @@ export default function WarrantyRegister() {
       return { ...f, items: copy };
     });
   }
-
   function removeItem(index) {
     setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== index) }));
+  }
+
+  function updateApplication(index, key) {
+    return (e) => {
+      const value = e.target.value;
+      setForm((f) => ({
+        ...f,
+        applications: f.applications.map((a, i) => (i === index ? { ...a, [key]: value } : a)),
+      }));
+    };
+  }
+  function addApplication() {
+    setForm((f) => ({ ...f, applications: [...f.applications, newApplication()] }));
+  }
+  function removeApplication(index) {
+    setForm((f) => ({ ...f, applications: f.applications.filter((_, i) => i !== index) }));
   }
 
   const outletOptions = form.purchaseDistrict ? OUTLETS_BY_DISTRICT[form.purchaseDistrict] || [] : [];
@@ -152,23 +177,24 @@ export default function WarrantyRegister() {
     });
     if (itemErrors.some((ie) => Object.keys(ie).length > 0)) e.items = itemErrors;
 
-    if (!form.paintingStartDate) e.paintingStartDate = "Select the painting start date.";
-    if (!form.paintingCompletionDate) e.paintingCompletionDate = "Select the completion date.";
-    if (form.paintingStartDate && form.purchaseDate && form.paintingStartDate < form.purchaseDate) {
-      e.paintingStartDate = "Cannot be before the purchase date.";
-    }
-    if (
-      form.paintingCompletionDate &&
-      form.paintingStartDate &&
-      form.paintingCompletionDate < form.paintingStartDate
-    ) {
-      e.paintingCompletionDate = "Completion date cannot be before the painting start date.";
-    }
-    if (!form.applicationArea) e.applicationArea = "Select interior, exterior, or both.";
-    if (!form.paintedAreaSqft || Number(form.paintedAreaSqft) <= 0) e.paintedAreaSqft = "Enter the painted area.";
-    if (!form.topcoats || Number(form.topcoats) <= 0) e.topcoats = "Enter the number of topcoats.";
-    if (!form.painterName.trim()) e.painterName = "Enter the painter / contractor name.";
-    if (!/^[0-9+\-\s]{7,15}$/.test(form.painterMobile.trim())) e.painterMobile = "Enter a valid mobile number.";
+    const appErrors = form.applications.map((a) => {
+      const ae = {};
+      if (!a.paintingStartDate) ae.paintingStartDate = "Select the painting start date.";
+      if (!a.paintingCompletionDate) ae.paintingCompletionDate = "Select the completion date.";
+      if (a.paintingStartDate && form.purchaseDate && a.paintingStartDate < form.purchaseDate) {
+        ae.paintingStartDate = "Cannot be before the purchase date.";
+      }
+      if (a.paintingCompletionDate && a.paintingStartDate && a.paintingCompletionDate < a.paintingStartDate) {
+        ae.paintingCompletionDate = "Cannot be before the painting start date.";
+      }
+      if (!a.applicationArea) ae.applicationArea = "Select interior or exterior.";
+      if (!a.paintedAreaSqft || Number(a.paintedAreaSqft) <= 0) ae.paintedAreaSqft = "Enter the painted area.";
+      if (!a.topcoats || Number(a.topcoats) <= 0) ae.topcoats = "Enter the number of topcoats.";
+      if (!a.painterName.trim()) ae.painterName = "Enter the painter / contractor name.";
+      if (!/^[0-9+\-\s]{7,15}$/.test(a.painterMobile.trim())) ae.painterMobile = "Enter a valid mobile number.";
+      return ae;
+    });
+    if (appErrors.some((ae) => Object.keys(ae).length > 0)) e.applications = appErrors;
 
     if (!form.puttyUsed) e.puttyUsed = "Select yes or no.";
     if (form.puttyUsed === "Yes" && !form.puttyBrand.trim()) e.puttyBrand = "Required since putty was used.";
@@ -200,7 +226,7 @@ export default function WarrantyRegister() {
 
     setSubmitting(true);
     try {
-      const { items, ...rest } = form;
+      const { items, applications, ...rest } = form;
       const payload = {
         ...rest,
         items: items.map((it) => ({
@@ -209,6 +235,16 @@ export default function WarrantyRegister() {
           containers: Number(it.containers),
           batchNumbers: it.batchNumbersText.split(",").map((s) => s.trim()).filter(Boolean),
           shadeType: it.shadeType,
+        })),
+        applications: applications.map((a) => ({
+          paintingStartDate: a.paintingStartDate,
+          paintingCompletionDate: a.paintingCompletionDate,
+          applicationArea: a.applicationArea,
+          paintedAreaSqft: Number(a.paintedAreaSqft),
+          topcoats: Number(a.topcoats),
+          applicationMethod: a.applicationMethod,
+          painterName: a.painterName,
+          painterMobile: a.painterMobile,
         })),
       };
       const { data } = await client.post("/warranty/register", payload);
@@ -442,50 +478,84 @@ export default function WarrantyRegister() {
               </button>
             </div>
 
-            {/* --- Application --- */}
+            {/* --- Application (repeatable) --- */}
             <div className="section">
               <h3>Application</h3>
-              <div className="grid grid-2">
-                <Field label="Painting start date" error={errors.paintingStartDate}>
-                  <input type="date" value={form.paintingStartDate} onChange={update("paintingStartDate")} min={form.purchaseDate} />
-                </Field>
-                <Field label="Painting completion date" error={errors.paintingCompletionDate}>
-                  <input type="date" value={form.paintingCompletionDate} onChange={update("paintingCompletionDate")} min={form.paintingStartDate || form.purchaseDate} />
-                </Field>
+              <div className="items-list">
+                {form.applications.map((app, index) => {
+                  const ae = errors.applications?.[index] || {};
+                  return (
+                    <div className="item-row" key={app.uid}>
+                      <div className="item-row-head">
+                        <span className="item-number">Application {index + 1}</span>
+                        {form.applications.length > 1 && (
+                          <button type="button" className="item-remove" onClick={() => removeApplication(index)}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-2">
+                        <Field label="Painting start date" error={ae.paintingStartDate}>
+                          <input
+                            type="date"
+                            value={app.paintingStartDate}
+                            onChange={updateApplication(index, "paintingStartDate")}
+                            min={form.purchaseDate}
+                          />
+                        </Field>
+                        <Field label="Painting completion date" error={ae.paintingCompletionDate}>
+                          <input
+                            type="date"
+                            value={app.paintingCompletionDate}
+                            onChange={updateApplication(index, "paintingCompletionDate")}
+                            min={app.paintingStartDate || form.purchaseDate}
+                          />
+                        </Field>
+                      </div>
+                      <div className="grid grid-3">
+                        <Field label="Application area" error={ae.applicationArea}>
+                          <select value={app.applicationArea} onChange={updateApplication(index, "applicationArea")}>
+                            <option value="">Select</option>
+                            <option value="Interior">Interior</option>
+                            <option value="Exterior">Exterior</option>
+                          </select>
+                        </Field>
+                        <Field label="Approx. painted area (sqft)" error={ae.paintedAreaSqft}>
+                          <input
+                            type="number"
+                            min="1"
+                            value={app.paintedAreaSqft}
+                            onChange={updateApplication(index, "paintedAreaSqft")}
+                          />
+                        </Field>
+                        <Field label="Number of topcoats" error={ae.topcoats}>
+                          <input type="number" min="1" value={app.topcoats} onChange={updateApplication(index, "topcoats")} />
+                        </Field>
+                      </div>
+                      <Field label="Application method" hint="Recommended">
+                        <select value={app.applicationMethod} onChange={updateApplication(index, "applicationMethod")}>
+                          <option value="">Select</option>
+                          <option value="Brush">Brush</option>
+                          <option value="Roller">Roller</option>
+                          <option value="Spray">Spray</option>
+                          <option value="Combination">Combination</option>
+                        </select>
+                      </Field>
+                      <div className="grid grid-2">
+                        <Field label="Painter / contractor name" error={ae.painterName}>
+                          <input type="text" value={app.painterName} onChange={updateApplication(index, "painterName")} />
+                        </Field>
+                        <Field label="Painter / contractor mobile" error={ae.painterMobile}>
+                          <input type="tel" value={app.painterMobile} onChange={updateApplication(index, "painterMobile")} />
+                        </Field>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="grid grid-3">
-                <Field label="Application area" error={errors.applicationArea}>
-                  <select value={form.applicationArea} onChange={update("applicationArea")}>
-                    <option value="">Select</option>
-                    <option value="Interior">Interior</option>
-                    <option value="Exterior">Exterior</option>
-                    <option value="Both">Both</option>
-                  </select>
-                </Field>
-                <Field label="Approx. painted area (sqft)" error={errors.paintedAreaSqft}>
-                  <input type="number" min="1" value={form.paintedAreaSqft} onChange={update("paintedAreaSqft")} />
-                </Field>
-                <Field label="Number of topcoats" error={errors.topcoats}>
-                  <input type="number" min="1" value={form.topcoats} onChange={update("topcoats")} />
-                </Field>
-              </div>
-              <Field label="Application method" hint="Recommended">
-                <select value={form.applicationMethod} onChange={update("applicationMethod")}>
-                  <option value="">Select</option>
-                  <option value="Brush">Brush</option>
-                  <option value="Roller">Roller</option>
-                  <option value="Spray">Spray</option>
-                  <option value="Combination">Combination</option>
-                </select>
-              </Field>
-              <div className="grid grid-2">
-                <Field label="Painter / contractor name" error={errors.painterName}>
-                  <input type="text" value={form.painterName} onChange={update("painterName")} />
-                </Field>
-                <Field label="Painter / contractor mobile" error={errors.painterMobile}>
-                  <input type="tel" value={form.painterMobile} onChange={update("painterMobile")} />
-                </Field>
-              </div>
+              <button type="button" className="btn btn-ghost add-item-btn" onClick={addApplication}>
+                + Add another application
+              </button>
             </div>
 
             {/* --- Painting system --- */}

@@ -17,9 +17,28 @@ const warrantyItemSchema = new mongoose.Schema(
       },
     },
     shadeType: { type: String, enum: ["White", "Tinted Shade"], required: true },
-    // Snapshotted at registration time from the product master, e.g. "7 YEARS" —
-    // so a later change to the master never alters an already-registered warranty.
     warrantyPeriod: { type: String, trim: true, default: "" },
+  },
+  { _id: false }
+);
+
+// One application entry — repeatable, since a site can have interior and
+// exterior work done separately, or in different phases.
+const applicationSchema = new mongoose.Schema(
+  {
+    paintingStartDate: { type: Date, required: true },
+    paintingCompletionDate: { type: Date, required: true },
+    applicationArea: { type: String, enum: ["Interior", "Exterior"], required: true },
+    paintedAreaSqft: { type: Number, required: true },
+    topcoats: { type: Number, required: true },
+    applicationMethod: { type: String, enum: ["Brush", "Roller", "Spray", "Combination", ""], default: "" },
+    painterName: { type: String, required: true, trim: true },
+    painterMobile: {
+      type: String,
+      required: true,
+      trim: true,
+      match: [/^[0-9+\-\s]{7,15}$/, "Enter a valid mobile number"],
+    },
   },
   { _id: false }
 );
@@ -81,18 +100,12 @@ const warrantyRegistrationSchema = new mongoose.Schema(
       },
     },
 
-    paintingStartDate: { type: Date, required: true },
-    paintingCompletionDate: { type: Date, required: true },
-    applicationArea: { type: String, enum: ["Interior", "Exterior", "Both"], required: true },
-    paintedAreaSqft: { type: Number, required: true },
-    topcoats: { type: Number, required: true },
-    applicationMethod: { type: String, enum: ["Brush", "Roller", "Spray", "Combination", ""], default: "" },
-    painterName: { type: String, required: true, trim: true },
-    painterMobile: {
-      type: String,
-      required: true,
-      trim: true,
-      match: [/^[0-9+\-\s]{7,15}$/, "Enter a valid mobile number"],
+    applications: {
+      type: [applicationSchema],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
+        message: "Add at least one application entry.",
+      },
     },
 
     puttyUsed: { type: String, enum: ["Yes", "No"], required: true },

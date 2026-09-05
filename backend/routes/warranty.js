@@ -12,15 +12,13 @@ const TOP_LEVEL_FIELDS = [
   "siteName", "houseNo", "street", "panchayat", "siteDistrict", "siteState",
   "pincode", "propertyType", "paintingType", "buildingAge",
   "purchaseDate", "invoiceNumber", "purchaseState", "purchaseDistrict", "outlet",
-  "paintingStartDate", "paintingCompletionDate", "applicationArea", "paintedAreaSqft",
-  "topcoats", "applicationMethod", "painterName", "painterMobile",
   "puttyUsed", "puttyBrand", "primerUsed", "primerBrand", "primerProductName", "primerCoats",
   "baseCoatUsed", "baseCoatDetails",
 ];
 
 router.post("/register", async (req, res) => {
   try {
-    const { items, surfaceCondition, declarations } = req.body;
+    const { items, applications, surfaceCondition, declarations } = req.body;
 
     const requiredDecls = [
       "infoAccurate", "applicationAccurate", "policyAccepted",
@@ -37,14 +35,15 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Enter at least one batch number for every product." });
     }
 
-    // Rule 1: only products on the master list carry a declared warranty —
-    // reject anything else outright, even if someone bypasses the dropdown
-    // and calls this endpoint directly.
     const invalidProduct = items.find((it) => !PRODUCTS.includes(it.product));
     if (invalidProduct) {
       return res.status(400).json({
         message: `"${invalidProduct.product}" is not a Kerala Paints warranty-eligible product.`,
       });
+    }
+
+    if (!Array.isArray(applications) || applications.length === 0) {
+      return res.status(400).json({ message: "Add at least one application entry." });
     }
 
     if (req.body.purchaseDate) {
@@ -55,10 +54,12 @@ router.post("/register", async (req, res) => {
           message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
         });
       }
-    }
 
-    if (req.body.paintingStartDate && req.body.purchaseDate) {
-      if (new Date(req.body.paintingStartDate) < new Date(req.body.purchaseDate)) {
+      // Rule 12, applied per application entry now that there can be several.
+      const earlyEntry = applications.find(
+        (a) => a.paintingStartDate && new Date(a.paintingStartDate) < purchaseDate
+      );
+      if (earlyEntry) {
         return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
       }
     }
@@ -102,6 +103,17 @@ router.post("/register", async (req, res) => {
         warrantyPeriod: WARRANTY_YEARS_BY_PRODUCT[it.product] || "",
       };
     });
+
+    payload.applications = applications.map((a) => ({
+      paintingStartDate: a.paintingStartDate,
+      paintingCompletionDate: a.paintingCompletionDate,
+      applicationArea: a.applicationArea,
+      paintedAreaSqft: Number(a.paintedAreaSqft),
+      topcoats: Number(a.topcoats),
+      applicationMethod: a.applicationMethod || "",
+      painterName: a.painterName,
+      painterMobile: a.painterMobile,
+    }));
 
     payload.surfaceCondition = surfaceCondition;
     payload.declarations = declarations;
