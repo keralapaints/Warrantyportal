@@ -46,22 +46,32 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Add at least one application entry." });
     }
 
+    // Forward-only date chain: purchase date -> painting start -> painting
+    // completion, for every application entry. Checked server-side so the
+    // rule can't be skipped by calling the API directly.
     if (req.body.purchaseDate) {
       const purchaseDate = new Date(req.body.purchaseDate);
-      const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSince > REGISTRATION_WINDOW_DAYS) {
-        return res.status(400).json({
-          message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
-        });
-      }
 
-      // Rule 12, applied per application entry now that there can be several.
-      const earlyEntry = applications.find(
+      const beforePurchase = applications.find(
         (a) => a.paintingStartDate && new Date(a.paintingStartDate) < purchaseDate
       );
-      if (earlyEntry) {
-        return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
+      if (beforePurchase) {
+        return res.status(400).json({
+          message: "Painting start date cannot be before the purchase date.",
+        });
       }
+    }
+
+    const completionBeforeStart = applications.find(
+      (a) =>
+        a.paintingStartDate &&
+        a.paintingCompletionDate &&
+        new Date(a.paintingCompletionDate) < new Date(a.paintingStartDate)
+    );
+    if (completionBeforeStart) {
+      return res.status(400).json({
+        message: "Painting completion date cannot be before the painting start date.",
+      });
     }
 
     if (req.body.invoiceNumber && req.body.siteName && Array.isArray(items)) {
@@ -74,6 +84,16 @@ router.post("/register", async (req, res) => {
       if (existing) {
         return res.status(409).json({
           message: "This invoice and site combination already has a registration on file.",
+        });
+      }
+    }
+
+    if (req.body.purchaseDate) {
+      const purchaseDate = new Date(req.body.purchaseDate);
+      const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince > REGISTRATION_WINDOW_DAYS) {
+        return res.status(400).json({
+          message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
         });
       }
     }
