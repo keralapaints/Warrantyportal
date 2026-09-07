@@ -69,6 +69,9 @@ export default function WarrantyClaim() {
           </form>
 
           <Link to="/" className="back-link">← Back to home</Link>
+          <Link to="/claim/lost-invoice" className="track-link" style={{ display: "block", marginTop: 12 }}>
+            Lost your invoice? Submit manually
+          </Link>
         </div>
       </div>
       <VerifyStyles />

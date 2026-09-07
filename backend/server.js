@@ -7,6 +7,7 @@ const authRoutes = require("./routes/auth");
 const complaintRoutes = require("./routes/complaints");
 const warrantyRoutes = require("./routes/warranty");
 const otpRoutes = require("./routes/otp");
+const lostInvoiceRoutes = require("./routes/lostInvoice");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true, otpRoutesLoaded: true,
 
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/warranty/lost-invoice", lostInvoiceRoutes);
 app.use("/api/warranty", otpRoutes);
 app.use("/api/warranty", warrantyRoutes);
 

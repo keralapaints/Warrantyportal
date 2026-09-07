@@ -9,6 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import ManagerDashboard from "./pages/ManagerDashboard.jsx";
 import HappinessDashboard from "./pages/HappinessDashboard.jsx";
 import RequireAuth from "./components/RequireAuth.jsx";
+import LostInvoiceClaim from "./pages/LostInvoiceClaim.jsx";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/claim" element={<WarrantyClaim />} />
       <Route path="/track" element={<TrackComplaint />} />
       <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/claim/lost-invoice" element={<LostInvoiceClaim />} />
       <Route
         path="/admin"
         element={
