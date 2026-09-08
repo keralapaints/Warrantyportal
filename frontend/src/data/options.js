@@ -90,9 +90,6 @@ export const QUANTITIES_BY_PRODUCT = {
   "Bhadram In GN 16": ["18 Ltr", "9 Ltr", "3.6 Ltr", "0.9 Ltr"],
 };
 
-// Warranty period per product, as text exactly as Kerala Paints defines it
-// (e.g. "4 YEARS"). Used to show the customer what they're registering for,
-// and copied onto the registration record as a snapshot.
 export const WARRANTY_YEARS_BY_PRODUCT = {
   "All in One": "4 YEARS",
   "All in One RC 2": "4 YEARS",
@@ -138,24 +135,35 @@ export const WARRANTY_YEARS_BY_PRODUCT = {
   "Bhadram In GN 16": "10 YEARS",
 };
 
-export const DISTRICTS = [
-  "Thiruvananthapuram",
-  "Kollam",
-  "Pathanamthitta",
-  "Alappuzha",
-  "Kottayam",
-  "Idukki",
-  "Ernakulam",
-  "Thrissur",
-  "Palakkad",
-  "Malappuram",
-  "Kozhikode",
-  "Wayanad",
-  "Kannur",
-  "Kasaragod",
-  "Mahe",
-  "Tamil Nadu",
-];
+// Only the states we actually operate in.
+export const STATES = ["Kerala", "Tamil Nadu"];
+
+// Districts, dependent on the selected state — Tamil Nadu only has one
+// outlet location (Coimbatore), so that's the only district offered there.
+export const DISTRICTS_BY_STATE = {
+  "Kerala": [
+    "Thiruvananthapuram",
+    "Kollam",
+    "Pathanamthitta",
+    "Alappuzha",
+    "Kottayam",
+    "Idukki",
+    "Ernakulam",
+    "Thrissur",
+    "Palakkad",
+    "Malappuram",
+    "Kozhikode",
+    "Wayanad",
+    "Kannur",
+    "Kasaragod",
+    "Mahe",
+  ],
+  "Tamil Nadu": ["Coimbatore"],
+};
+
+// Flat list of every valid district across both states — used only where a
+// single dropdown with no state context is needed (e.g. Lost Invoice form).
+export const ALL_DISTRICTS = [...DISTRICTS_BY_STATE["Kerala"], ...DISTRICTS_BY_STATE["Tamil Nadu"]];
 
 export const OUTLETS_BY_DISTRICT = {
   "Thiruvananthapuram": [
@@ -234,7 +242,5 @@ export const OUTLETS_BY_DISTRICT = {
     "AMS INFINITY WORLS (Chemnad Panchayath)",
     "ABM  PAINTS & HARDWARES (Ajanur Panchayath)",
   ],
-  "Tamil Nadu": ["Factory outlet (Coimbatore)"],
+  "Coimbatore": ["Factory outlet (Coimbatore)"],
 };
-
-export const STATES = ["Kerala", "Tamil Nadu", "Karnataka", "Andhra Pradesh"];
