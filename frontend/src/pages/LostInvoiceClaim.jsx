@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
-import { DISTRICTS } from "../data/options";
+import { ALL_DISTRICTS } from "../data/options";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -121,7 +121,7 @@ export default function LostInvoiceClaim() {
               <Field label="District" error={errors.siteDistrict}>
                 <select value={form.siteDistrict} onChange={update("siteDistrict")}>
                   <option value="">Select district</option>
-                  {DISTRICTS.map((d) => (
+                  {ALL_DISTRICTS.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>

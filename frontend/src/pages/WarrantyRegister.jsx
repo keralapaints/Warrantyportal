@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
 import {
-  DISTRICTS,
+  DISTRICTS_BY_STATE,
   OUTLETS_BY_DISTRICT,
   PRODUCTS,
   QUANTITIES_BY_PRODUCT,
@@ -104,7 +104,6 @@ export default function WarrantyRegister() {
   function updateEmail(e) {
     const value = e.target.value;
     setForm((f) => ({ ...f, email: value }));
-    // Changing the email invalidates any previous verification for the old one.
     setOtpStep("idle");
     setOtp("");
     setOtpError("");
@@ -150,6 +149,18 @@ export default function WarrantyRegister() {
     setForm((f) => ({ ...f, [group]: { ...f[group], [key]: e.target.value } }));
   const updateCheck = (group, key) => (e) =>
     setForm((f) => ({ ...f, [group]: { ...f[group], [key]: e.target.checked } }));
+
+  // Changing the site state invalidates whatever site district was picked,
+  // since the district list depends on the state.
+  function updateSiteState(e) {
+    setForm((f) => ({ ...f, siteState: e.target.value, siteDistrict: "" }));
+  }
+
+  // Changing the purchase state invalidates district AND outlet, since
+  // outlet depends on district which depends on state.
+  function updatePurchaseState(e) {
+    setForm((f) => ({ ...f, purchaseState: e.target.value, purchaseDistrict: "", outlet: "" }));
+  }
 
   function updatePurchaseDistrict(e) {
     setForm((f) => ({ ...f, purchaseDistrict: e.target.value, outlet: "" }));
@@ -199,6 +210,8 @@ export default function WarrantyRegister() {
     setForm((f) => ({ ...f, applications: f.applications.filter((_, i) => i !== index) }));
   }
 
+  const siteDistrictOptions = form.siteState ? DISTRICTS_BY_STATE[form.siteState] || [] : [];
+  const purchaseDistrictOptions = form.purchaseState ? DISTRICTS_BY_STATE[form.purchaseState] || [] : [];
   const outletOptions = form.purchaseDistrict ? OUTLETS_BY_DISTRICT[form.purchaseDistrict] || [] : [];
 
   function validate() {
@@ -212,8 +225,8 @@ export default function WarrantyRegister() {
     if (!form.siteName.trim()) e.siteName = "Enter the site / building name.";
     if (!form.street.trim()) e.street = "Enter the street / locality.";
     if (!form.panchayat.trim()) e.panchayat = "Enter the panchayat / municipality / corporation.";
-    if (!form.siteDistrict) e.siteDistrict = "Select the site district.";
     if (!form.siteState) e.siteState = "Select the site state.";
+    if (!form.siteDistrict) e.siteDistrict = "Select the site district.";
     if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = "Enter a 6-digit PIN code.";
     if (!form.propertyType) e.propertyType = "Select a property type.";
     if (!form.paintingType) e.paintingType = "Select new building or repainting.";
@@ -462,14 +475,19 @@ export default function WarrantyRegister() {
               </Field>
               <div className="grid grid-3">
                 <Field label="State" error={errors.siteState}>
-                  <select value={form.siteState} onChange={update("siteState")}>
+                  <select value={form.siteState} onChange={updateSiteState}>
+                    <option value="">Select state</option>
                     {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="District" error={errors.siteDistrict}>
-                  <select value={form.siteDistrict} onChange={update("siteDistrict")}>
-                    <option value="">Select district</option>
-                    {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                <Field
+                  label="District"
+                  error={errors.siteDistrict}
+                  hint={!form.siteState ? "Select a state first" : undefined}
+                >
+                  <select value={form.siteDistrict} onChange={update("siteDistrict")} disabled={!form.siteState}>
+                    <option value="">{form.siteState ? "Select district" : "Select a state first"}</option>
+                    {siteDistrictOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </Field>
                 <Field label="PIN code" error={errors.pincode}>
@@ -511,17 +529,26 @@ export default function WarrantyRegister() {
               </div>
               <div className="grid grid-3">
                 <Field label="Purchase state" error={errors.purchaseState}>
-                  <select value={form.purchaseState} onChange={update("purchaseState")}>
+                  <select value={form.purchaseState} onChange={updatePurchaseState}>
+                    <option value="">Select state</option>
                     {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="Purchase district" error={errors.purchaseDistrict}>
-                  <select value={form.purchaseDistrict} onChange={updatePurchaseDistrict}>
-                    <option value="">Select district</option>
-                    {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                <Field
+                  label="Purchase district"
+                  error={errors.purchaseDistrict}
+                  hint={!form.purchaseState ? "Select a state first" : undefined}
+                >
+                  <select value={form.purchaseDistrict} onChange={updatePurchaseDistrict} disabled={!form.purchaseState}>
+                    <option value="">{form.purchaseState ? "Select district" : "Select a state first"}</option>
+                    {purchaseDistrictOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </Field>
-                <Field label="Outlet / dealer" error={errors.outlet} hint={!form.purchaseDistrict ? "Select a district first" : undefined}>
+                <Field
+                  label="Outlet / dealer"
+                  error={errors.outlet}
+                  hint={!form.purchaseDistrict ? "Select a district first" : undefined}
+                >
                   <select value={form.outlet} onChange={update("outlet")} disabled={!form.purchaseDistrict}>
                     <option value="">{form.purchaseDistrict ? "Select outlet" : "Select a district first"}</option>
                     {outletOptions.map((o) => <option key={o} value={o}>{o}</option>)}
