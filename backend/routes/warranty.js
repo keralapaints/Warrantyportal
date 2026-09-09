@@ -1,7 +1,8 @@
 const express = require("express");
 const WarrantyRegistration = require("../models/WarrantyRegistration");
 const OtpVerification = require("../models/OtpVerification");
-const { requireAdmin } = require("../middleware/auth");
+const Complaint = require("../models/Complaint");
+const { requireAdmin, requireRole } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 
 const router = express.Router();
@@ -17,43 +18,92 @@ const TOP_LEVEL_FIELDS = [
   "baseCoatUsed", "baseCoatDetails",
 ];
 
+const REQUIRED_DECLARATIONS = [
+  "infoAccurate", "applicationAccurate", "policyAccepted",
+  "eligibilityUnderstood", "inspectionAccess", "privacyConsent",
+];
+
+// Shared validation for the product/application arrays — used by the
+// public register, and by admin create/update.
+function validateItemsAndApplications(items, applications) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "Add at least one product.";
+  }
+  if (items.some((it) => !Array.isArray(it.batchNumbers) || it.batchNumbers.length === 0)) {
+    return "Enter at least one batch number for every product.";
+  }
+  const invalidProduct = items.find((it) => !PRODUCTS.includes(it.product));
+  if (invalidProduct) {
+    return `"${invalidProduct.product}" is not a Kerala Paints warranty-eligible product.`;
+  }
+  if (!Array.isArray(applications) || applications.length === 0) {
+    return "Add at least one application entry.";
+  }
+  const completionBeforeStart = applications.find(
+    (a) =>
+      a.paintingStartDate &&
+      a.paintingCompletionDate &&
+      new Date(a.paintingCompletionDate) < new Date(a.paintingStartDate)
+  );
+  if (completionBeforeStart) {
+    return "Painting completion date cannot be before the painting start date.";
+  }
+  return null;
+}
+
+function buildItemsPayload(items) {
+  return items.map((it) => {
+    const containers = Number(it.containers);
+    const packMatch = String(it.packSize || "").match(/^([\d.]+)\s*(.*)$/);
+    const packQty = packMatch ? parseFloat(packMatch[1]) : null;
+    const unit = packMatch ? packMatch[2] : "";
+    const totalQuantity =
+      packQty !== null && !Number.isNaN(containers)
+        ? `${(packQty * containers).toFixed(2).replace(/\.00$/, "")} ${unit}`.trim()
+        : "";
+    return {
+      product: it.product,
+      packSize: it.packSize,
+      containers,
+      totalQuantity,
+      batchNumbers: it.batchNumbers,
+      shadeType: it.shadeType,
+      warrantyPeriod: WARRANTY_YEARS_BY_PRODUCT[it.product] || "",
+    };
+  });
+}
+
+function buildApplicationsPayload(applications) {
+  return applications.map((a) => ({
+    paintingStartDate: a.paintingStartDate,
+    paintingCompletionDate: a.paintingCompletionDate,
+    applicationArea: a.applicationArea,
+    paintedAreaSqft: Number(a.paintedAreaSqft),
+    topcoats: Number(a.topcoats),
+    applicationMethod: a.applicationMethod || "",
+    painterName: a.painterName,
+    painterMobile: a.painterMobile,
+  }));
+}
+
+// POST /api/warranty/register — public customer registration. Requires a
+// verified OTP for the given email before it will create anything.
 router.post("/register", async (req, res) => {
   try {
     const { items, applications, surfaceCondition, declarations, email } = req.body;
 
-    // Email must have gone through the OTP flow and been verified before
-    // a registration can be created — enforced here, not just in the UI.
     const normalizedEmail = String(email || "").trim().toLowerCase();
     const otpRecord = await OtpVerification.findOne({ email: normalizedEmail });
     if (!otpRecord || !otpRecord.verified) {
       return res.status(400).json({ message: "Please verify your email before submitting." });
     }
 
-    const requiredDecls = [
-      "infoAccurate", "applicationAccurate", "policyAccepted",
-      "eligibilityUnderstood", "inspectionAccess", "privacyConsent",
-    ];
-    if (!declarations || requiredDecls.some((key) => declarations[key] !== true)) {
+    if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
       return res.status(400).json({ message: "All mandatory declarations must be accepted." });
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Add at least one product." });
-    }
-    if (items.some((it) => !Array.isArray(it.batchNumbers) || it.batchNumbers.length === 0)) {
-      return res.status(400).json({ message: "Enter at least one batch number for every product." });
-    }
-
-    const invalidProduct = items.find((it) => !PRODUCTS.includes(it.product));
-    if (invalidProduct) {
-      return res.status(400).json({
-        message: `"${invalidProduct.product}" is not a Kerala Paints warranty-eligible product.`,
-      });
-    }
-
-    if (!Array.isArray(applications) || applications.length === 0) {
-      return res.status(400).json({ message: "Add at least one application entry." });
-    }
+    const itemsError = validateItemsAndApplications(items, applications);
+    if (itemsError) return res.status(400).json({ message: itemsError });
 
     if (req.body.purchaseDate) {
       const purchaseDate = new Date(req.body.purchaseDate);
@@ -71,18 +121,6 @@ router.post("/register", async (req, res) => {
           message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
         });
       }
-    }
-
-    const completionBeforeStart = applications.find(
-      (a) =>
-        a.paintingStartDate &&
-        a.paintingCompletionDate &&
-        new Date(a.paintingCompletionDate) < new Date(a.paintingStartDate)
-    );
-    if (completionBeforeStart) {
-      return res.status(400).json({
-        message: "Painting completion date cannot be before the painting start date.",
-      });
     }
 
     if (req.body.invoiceNumber && req.body.siteName && Array.isArray(items)) {
@@ -103,39 +141,8 @@ router.post("/register", async (req, res) => {
     for (const field of TOP_LEVEL_FIELDS) {
       if (req.body[field] !== undefined) payload[field] = req.body[field];
     }
-
-    payload.items = items.map((it) => {
-      const containers = Number(it.containers);
-      const packMatch = String(it.packSize || "").match(/^([\d.]+)\s*(.*)$/);
-      const packQty = packMatch ? parseFloat(packMatch[1]) : null;
-      const unit = packMatch ? packMatch[2] : "";
-      const totalQuantity =
-        packQty !== null && !Number.isNaN(containers)
-          ? `${(packQty * containers).toFixed(2).replace(/\.00$/, "")} ${unit}`.trim()
-          : "";
-
-      return {
-        product: it.product,
-        packSize: it.packSize,
-        containers,
-        totalQuantity,
-        batchNumbers: it.batchNumbers,
-        shadeType: it.shadeType,
-        warrantyPeriod: WARRANTY_YEARS_BY_PRODUCT[it.product] || "",
-      };
-    });
-
-    payload.applications = applications.map((a) => ({
-      paintingStartDate: a.paintingStartDate,
-      paintingCompletionDate: a.paintingCompletionDate,
-      applicationArea: a.applicationArea,
-      paintedAreaSqft: Number(a.paintedAreaSqft),
-      topcoats: Number(a.topcoats),
-      applicationMethod: a.applicationMethod || "",
-      painterName: a.painterName,
-      painterMobile: a.painterMobile,
-    }));
-
+    payload.items = buildItemsPayload(items);
+    payload.applications = buildApplicationsPayload(applications);
     payload.surfaceCondition = surfaceCondition;
     payload.declarations = declarations;
     payload.declarationAcceptedAt = new Date();
@@ -203,8 +210,11 @@ router.get("/verify", async (req, res) => {
   }
 });
 
+// --- Everything below requires login ---
 router.use(requireAdmin);
 
+// GET /api/warranty?search=... — any logged-in staff can view/search
+// (admin, and happiness_manager for the Lost Invoice review search).
 router.get("/", async (req, res) => {
   try {
     const { search, status } = req.query;
@@ -219,6 +229,116 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Something went wrong. Please try again." });
+  }
+});
+
+// POST /api/warranty — admin manually creates a registration (phone/walk-in).
+// No OTP required (admin is trusted), and the 15-day window is not enforced
+// since admin may be backdating an older, legitimate registration.
+router.post("/", requireRole("admin"), async (req, res) => {
+  try {
+    const { items, applications, surfaceCondition, declarations, status } = req.body;
+
+    if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
+      return res.status(400).json({ message: "All mandatory declarations must be accepted." });
+    }
+
+    const itemsError = validateItemsAndApplications(items, applications);
+    if (itemsError) return res.status(400).json({ message: itemsError });
+
+    if (req.body.purchaseDate && applications) {
+      const purchaseDate = new Date(req.body.purchaseDate);
+      const beforePurchase = applications.find(
+        (a) => a.paintingStartDate && new Date(a.paintingStartDate) < purchaseDate
+      );
+      if (beforePurchase) {
+        return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
+      }
+    }
+
+    const payload = {};
+    for (const field of TOP_LEVEL_FIELDS) {
+      if (req.body[field] !== undefined) payload[field] = req.body[field];
+    }
+    payload.items = buildItemsPayload(items);
+    payload.applications = buildApplicationsPayload(applications);
+    payload.surfaceCondition = surfaceCondition;
+    payload.declarations = declarations;
+    payload.declarationAcceptedAt = new Date();
+    if (status) payload.status = status;
+
+    const registration = await WarrantyRegistration.create(payload);
+
+    res.status(201).json({ message: "Registration created.", registration });
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      const errors = Object.fromEntries(
+        Object.entries(err.errors).map(([key, val]) => [key, val.message])
+      );
+      return res.status(400).json({ message: "Please check the form for errors.", errors });
+    }
+    console.error(err);
+    res.status(500).json({ message: "Something went wrong. Please try again." });
+  }
+});
+
+// PATCH /api/warranty/:id — admin edits any field of an existing registration.
+router.patch("/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const registration = await WarrantyRegistration.findById(req.params.id);
+    if (!registration) return res.status(404).json({ message: "Registration not found." });
+
+    const { items, applications, surfaceCondition, declarations, status } = req.body;
+
+    if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
+      return res.status(400).json({ message: "All mandatory declarations must be accepted." });
+    }
+
+    const itemsError = validateItemsAndApplications(items, applications);
+    if (itemsError) return res.status(400).json({ message: itemsError });
+
+    for (const field of TOP_LEVEL_FIELDS) {
+      if (req.body[field] !== undefined) registration[field] = req.body[field];
+    }
+    registration.items = buildItemsPayload(items);
+    registration.applications = buildApplicationsPayload(applications);
+    registration.surfaceCondition = surfaceCondition;
+    registration.declarations = declarations;
+    if (status) registration.status = status;
+
+    await registration.save();
+    res.json({ message: "Registration updated.", registration });
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      const errors = Object.fromEntries(
+        Object.entries(err.errors).map(([key, val]) => [key, val.message])
+      );
+      return res.status(400).json({ message: "Please check the form for errors.", errors });
+    }
+    console.error(err);
+    res.status(400).json({ message: "Could not update this registration." });
+  }
+});
+
+// DELETE /api/warranty/:id — admin deletes a registration, blocked if any
+// claim already references it (protects referential integrity).
+router.delete("/:id", requireRole("admin"), async (req, res) => {
+  try {
+    const registration = await WarrantyRegistration.findById(req.params.id);
+    if (!registration) return res.status(404).json({ message: "Registration not found." });
+
+    const linkedClaims = await Complaint.countDocuments({ warrantyToken: registration.token });
+    if (linkedClaims > 0) {
+      return res.status(409).json({
+        message: `Cannot delete — ${linkedClaims} claim(s) reference this registration (${registration.token}). Resolve those claims first.`,
+      });
+    }
+
+    await WarrantyRegistration.deleteOne({ _id: registration._id });
+    res.json({ message: "Registration deleted." });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: "Could not delete this registration." });
   }
 });
 

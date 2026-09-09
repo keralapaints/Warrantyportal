@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import StaffPanel from "../components/StaffPanel.jsx";
+import AdminRegistrationForm from "../components/AdminRegistrationForm.jsx";
 
 const COLUMNS = [
   { key: "new", label: "New" },
@@ -23,6 +24,8 @@ function productSummary(items) {
 
 export default function AdminDashboard() {
   const { name, logout } = useAuth();
+  const [view, setView] = useState("complaints"); // complaints | registrations
+
   const [complaints, setComplaints] = useState([]);
   const [counts, setCounts] = useState({ new: 0, assigned: 0, review: 0, pending: 0, solved: 0, total: 0 });
   const [managers, setManagers] = useState([]);
@@ -54,14 +57,15 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (view === "complaints") load();
+  }, [load, view]);
 
   useEffect(() => {
+    if (view !== "complaints") return;
     const t = setTimeout(() => load(search), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, view]);
 
   const grouped = useMemo(() => {
     const g = { new: [], assigned: [], review: [], pending: [], solved: [] };
@@ -107,13 +111,15 @@ export default function AdminDashboard() {
             <h1>Complaint Desk</h1>
           </div>
           <div className="header-right">
-            <input
-              className="search-input"
-              type="text"
-              placeholder="Search token, name, phone, invoice…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            {view === "complaints" && (
+              <input
+                className="search-input"
+                type="text"
+                placeholder="Search token, name, phone, invoice…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            )}
             <button className="btn btn-ghost" onClick={() => setStaffPanelOpen(true)}>
               Manage Staff
             </button>
@@ -126,98 +132,119 @@ export default function AdminDashboard() {
       </header>
 
       <div className="container">
-        <div className="summary-row">
-          {COLUMNS.map((col) => (
-            <div className={`summary-chip ${col.key}`} key={col.key}>
-              <span className="dot" />
-              {col.label} <strong>{counts[col.key] ?? 0}</strong>
-            </div>
-          ))}
-          <div className="summary-chip total">
-            Total <strong>{counts.total ?? 0}</strong>
-          </div>
+        <div className="view-switch">
+          <button
+            className={`view-pill ${view === "complaints" ? "active" : ""}`}
+            onClick={() => setView("complaints")}
+          >
+            Complaints
+          </button>
+          <button
+            className={`view-pill ${view === "registrations" ? "active" : ""}`}
+            onClick={() => setView("registrations")}
+          >
+            Warranty Registrations
+          </button>
         </div>
 
-        {error && <div className="dash-error">{error}</div>}
-
-        <div className="mobile-tabs">
-          {COLUMNS.map((col) => (
-            <button
-              key={col.key}
-              className={`mobile-tab ${mobileTab === col.key ? "active" : ""}`}
-              onClick={() => setMobileTab(col.key)}
-            >
-              {col.label} ({grouped[col.key].length})
-            </button>
-          ))}
-        </div>
-
-        <div className="board board-5">
-          {COLUMNS.map((col) => (
-            <div className={`board-col ${mobileTab === col.key ? "mobile-active" : ""}`} key={col.key}>
-              <div className="board-col-head">
-                <span className={`status-chip ${col.key}`}>
+        {view === "registrations" ? (
+          <RegistrationsPanel />
+        ) : (
+          <>
+            <div className="summary-row">
+              {COLUMNS.map((col) => (
+                <div className={`summary-chip ${col.key}`} key={col.key}>
                   <span className="dot" />
-                  {col.label}
-                </span>
-                <span className="col-count">{grouped[col.key].length}</span>
-              </div>
-
-              <div className="board-col-body">
-                {loading && <div className="empty-note">Loading…</div>}
-                {!loading && grouped[col.key].length === 0 && <div className="empty-note">Nothing here.</div>}
-
-                {grouped[col.key].map((c) => (
-                  <div className="complaint-card" key={c._id} onClick={() => setSelected(c)}>
-                    <div className="card-top">
-                      <span className="token-badge">{c.token}</span>
-                      <span className="card-date">{formatDate(c.date)}</span>
-                    </div>
-                    <p className="card-name">{c.customerName}</p>
-                    <p className="card-meta">
-                      {productSummary(c.items)} · {c.district}
-                    </p>
-
-                    {c.assignedTo && (
-                      <p className="card-assignee">Assigned to {c.assignedTo.name || c.assignedTo.username}</p>
-                    )}
-
-                    {c.status === "new" && (
-                      <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                        <select
-                          className="assign-select"
-                          disabled={busyId === c._id}
-                          defaultValue=""
-                          onChange={(e) => assign(c._id, e.target.value)}
-                        >
-                          <option value="" disabled>
-                            Assign to manager…
-                          </option>
-                          {managers.map((m) => (
-                            <option key={m._id} value={m._id}>
-                              {m.name || m.username}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {c.status === "review" && (
-                      <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                        <button className="mini-btn" disabled={busyId === c._id} onClick={() => decide(c._id, "solved")}>
-                          Mark Solved
-                        </button>
-                        <button className="mini-btn" disabled={busyId === c._id} onClick={() => decide(c._id, "pending")}>
-                          Mark Pending
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  {col.label} <strong>{counts[col.key] ?? 0}</strong>
+                </div>
+              ))}
+              <div className="summary-chip total">
+                Total <strong>{counts.total ?? 0}</strong>
               </div>
             </div>
-          ))}
-        </div>
+
+            {error && <div className="dash-error">{error}</div>}
+
+            <div className="mobile-tabs">
+              {COLUMNS.map((col) => (
+                <button
+                  key={col.key}
+                  className={`mobile-tab ${mobileTab === col.key ? "active" : ""}`}
+                  onClick={() => setMobileTab(col.key)}
+                >
+                  {col.label} ({grouped[col.key].length})
+                </button>
+              ))}
+            </div>
+
+            <div className="board board-5">
+              {COLUMNS.map((col) => (
+                <div className={`board-col ${mobileTab === col.key ? "mobile-active" : ""}`} key={col.key}>
+                  <div className="board-col-head">
+                    <span className={`status-chip ${col.key}`}>
+                      <span className="dot" />
+                      {col.label}
+                    </span>
+                    <span className="col-count">{grouped[col.key].length}</span>
+                  </div>
+
+                  <div className="board-col-body">
+                    {loading && <div className="empty-note">Loading…</div>}
+                    {!loading && grouped[col.key].length === 0 && <div className="empty-note">Nothing here.</div>}
+
+                    {grouped[col.key].map((c) => (
+                      <div className="complaint-card" key={c._id} onClick={() => setSelected(c)}>
+                        <div className="card-top">
+                          <span className="token-badge">{c.token}</span>
+                          <span className="card-date">{formatDate(c.date)}</span>
+                        </div>
+                        <p className="card-name">{c.customerName}</p>
+                        <p className="card-meta">
+                          {productSummary(c.items)} · {c.district}
+                        </p>
+
+                        {c.assignedTo && (
+                          <p className="card-assignee">Assigned to {c.assignedTo.name || c.assignedTo.username}</p>
+                        )}
+
+                        {c.status === "new" && (
+                          <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              className="assign-select"
+                              disabled={busyId === c._id}
+                              defaultValue=""
+                              onChange={(e) => assign(c._id, e.target.value)}
+                            >
+                              <option value="" disabled>
+                                Assign to manager…
+                              </option>
+                              {managers.map((m) => (
+                                <option key={m._id} value={m._id}>
+                                  {m.name || m.username}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {c.status === "review" && (
+                          <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                            <button className="mini-btn" disabled={busyId === c._id} onClick={() => decide(c._id, "solved")}>
+                              Mark Solved
+                            </button>
+                            <button className="mini-btn" disabled={busyId === c._id} onClick={() => decide(c._id, "pending")}>
+                              Mark Pending
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {selected && (
@@ -227,6 +254,250 @@ export default function AdminDashboard() {
       {staffPanelOpen && <StaffPanel onClose={() => setStaffPanelOpen(false)} />}
 
       <DashStyles />
+    </div>
+  );
+}
+
+// Warranty Registrations: search + list + full create/edit/delete.
+function RegistrationsPanel() {
+  const [search, setSearch] = useState("");
+  const [registrations, setRegistrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [formMode, setFormMode] = useState(null); // null | "create" | "edit"
+  const [formInitialData, setFormInitialData] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const load = useCallback(async (searchTerm = "") => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await client.get("/warranty", { params: searchTerm ? { search: searchTerm } : {} });
+      setRegistrations(data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load registrations.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    const t = setTimeout(() => load(search), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  function openCreate() {
+    setFormInitialData(null);
+    setFormMode("create");
+  }
+  function openEdit(reg) {
+    setFormInitialData(reg);
+    setFormMode("edit");
+    setSelected(null);
+  }
+  function handleSaved() {
+    setFormMode(null);
+    setFormInitialData(null);
+    load(search);
+  }
+
+  async function handleDelete(reg) {
+    setDeleteError("");
+    if (!window.confirm(`Delete registration ${reg.token}? This cannot be undone.`)) return;
+    setDeleteBusy(true);
+    try {
+      await client.delete(`/warranty/${reg._id}`);
+      setSelected(null);
+      load(search);
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || "Could not delete this registration.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  if (formMode) {
+    return (
+      <AdminRegistrationForm
+        mode={formMode}
+        initialData={formInitialData}
+        registrationId={formInitialData?._id}
+        onSaved={handleSaved}
+        onCancel={() => setFormMode(null)}
+      />
+    );
+  }
+
+  return (
+    <div className="registrations-panel">
+      <div className="reg-search-row">
+        <input
+          type="text"
+          placeholder="Search token, name, mobile, or invoice…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="reg-search-input"
+        />
+        <span className="reg-count">{registrations.length} result{registrations.length === 1 ? "" : "s"}</span>
+        <button type="button" className="btn btn-primary" onClick={openCreate}>
+          + New Registration
+        </button>
+      </div>
+
+      {error && <div className="dash-error">{error}</div>}
+      {deleteError && <div className="dash-error">{deleteError}</div>}
+
+      <div className="reg-list">
+        {loading && <div className="empty-note">Loading…</div>}
+        {!loading && registrations.length === 0 && <div className="empty-note">No registrations found.</div>}
+
+        {registrations.map((r) => (
+          <div className="reg-row" key={r._id} onClick={() => setSelected(r)}>
+            <div className="reg-row-main">
+              <div className="reg-row-top">
+                <span className="token-badge">{r.token}</span>
+                <span className="card-date">{formatDate(r.createdAt)}</span>
+              </div>
+              <p className="card-name">{r.customerName}</p>
+              <p className="card-meta">
+                {r.mobileNumber} · {r.siteName}, {r.siteDistrict} · {(r.items || []).map((it) => it.product).join(", ")}
+              </p>
+            </div>
+            <span className={`reg-status-chip ${r.status.toLowerCase()}`}>{r.status.replace(/_/g, " ")}</span>
+          </div>
+        ))}
+      </div>
+
+      {selected && (
+        <RegistrationDetailModal
+          registration={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => openEdit(selected)}
+          onDelete={() => handleDelete(selected)}
+          deleteBusy={deleteBusy}
+        />
+      )}
+    </div>
+  );
+}
+
+function RegistrationDetailModal({ registration: r, onClose, onEdit, onDelete, deleteBusy }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card glass-card wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <span className="token-badge">{r.token}</span>
+            <span className={`reg-status-chip ${r.status.toLowerCase()}`} style={{ marginLeft: 10 }}>
+              {r.status.replace(/_/g, " ")}
+            </span>
+          </div>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <h2>{r.customerName}</h2>
+
+        <span className="detail-label">Customer</span>
+        <div className="detail-grid">
+          <Detail label="Mobile" value={r.mobileNumber} />
+          <Detail label="Alternate mobile" value={r.alternateMobile} />
+          <Detail label="Email" value={r.email} />
+          <Detail label="Customer type" value={r.customerType} />
+        </div>
+
+        <span className="detail-label">Site</span>
+        <div className="detail-grid">
+          <Detail label="Site / building" value={r.siteName} />
+          <Detail label="Address" value={`${r.houseNo ? r.houseNo + ", " : ""}${r.street}`} />
+          <Detail label="Panchayat" value={r.panchayat} />
+          <Detail label="District / State" value={`${r.siteDistrict} / ${r.siteState}`} />
+          <Detail label="PIN code" value={r.pincode} />
+          <Detail label="Property type" value={r.propertyType} />
+          <Detail label="Painting type" value={r.paintingType} />
+          <Detail label="Building age" value={r.buildingAge ? `${r.buildingAge} yrs` : ""} />
+        </div>
+
+        <span className="detail-label">Purchase</span>
+        <div className="detail-grid">
+          <Detail label="Purchase date" value={formatDate(r.purchaseDate)} />
+          <Detail label="Invoice number" value={r.invoiceNumber} />
+          <Detail label="Outlet" value={r.outlet} />
+          <Detail label="Purchase district / state" value={`${r.purchaseDistrict} / ${r.purchaseState}`} />
+        </div>
+
+        <span className="detail-label">Products</span>
+        <div className="items-table">
+          {(r.items || []).map((it, i) => (
+            <div className="item-line" key={i}>
+              <span className="item-line-product">{it.product}</span>
+              <span className="item-line-meta">
+                {it.shadeType} · {it.containers} × {it.packSize}
+                {it.totalQuantity ? ` (${it.totalQuantity})` : ""} · Batch {(it.batchNumbers || []).join(", ")}
+                {it.warrantyPeriod ? ` · ${it.warrantyPeriod}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <span className="detail-label">Application</span>
+        <div className="items-table">
+          {(r.applications || []).map((a, i) => (
+            <div className="item-line" key={i}>
+              <span className="item-line-product">
+                {a.applicationArea} — {formatDate(a.paintingStartDate)} to {formatDate(a.paintingCompletionDate)}
+              </span>
+              <span className="item-line-meta">
+                {a.paintedAreaSqft} sqft · {a.topcoats} topcoats{a.applicationMethod ? ` · ${a.applicationMethod}` : ""} ·{" "}
+                {a.painterName} ({a.painterMobile})
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <span className="detail-label">Painting system</span>
+        <div className="detail-grid">
+          <Detail label="Putty used" value={r.puttyUsed} />
+          <Detail label="Putty brand" value={r.puttyBrand} />
+          <Detail label="Primer used" value={r.primerUsed} />
+          <Detail label="Primer brand / product" value={[r.primerBrand, r.primerProductName].filter(Boolean).join(" / ")} />
+          <Detail label="Primer coats" value={r.primerCoats} />
+          <Detail label="Base coat used" value={r.baseCoatUsed} />
+          <Detail label="Base coat details" value={r.baseCoatDetails} />
+        </div>
+
+        <span className="detail-label">Surface condition</span>
+        <div className="detail-grid">
+          <Detail label="Water leakage before" value={r.surfaceCondition?.waterLeakageBefore} />
+          <Detail label="Dampness / rising damp" value={r.surfaceCondition?.dampnessRisingDamp} />
+          <Detail label="Structural cracks" value={r.surfaceCondition?.structuralCracks} />
+          <Detail label="Loose plaster" value={r.surfaceCondition?.loosePlaster} />
+          <Detail label="Existing peeling" value={r.surfaceCondition?.existingPeeling} />
+          <Detail label="Efflorescence" value={r.surfaceCondition?.efflorescence} />
+          <Detail label="Fungus / algae" value={r.surfaceCondition?.fungusAlgae} />
+          <Detail label="Plumbing leakage" value={r.surfaceCondition?.plumbingLeakage} />
+        </div>
+
+        <span className="detail-label">Submitted</span>
+        <Detail label="Registered on" value={formatDate(r.createdAt)} />
+
+        <div className="modal-actions">
+          <button type="button" className="btn btn-primary" onClick={onEdit}>
+            Edit
+          </button>
+          <button type="button" className="btn btn-ghost delete-btn" disabled={deleteBusy} onClick={onDelete}>
+            {deleteBusy ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -265,7 +536,7 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
             <div className="item-line" key={i}>
               <span className="item-line-product">{it.product}</span>
               <span className="item-line-meta">
-                Qty {it.quantity} · Batch {it.batchNo} · Code {it.code}
+                {it.shadeType} · {it.containers} × {it.packSize} · Batch {(it.batchNumbers || []).join(", ")}
               </span>
             </div>
           ))}
@@ -324,7 +595,11 @@ function DashStyles() {
       .search-input:focus { outline: none; border-color: var(--teal-500); }
       .admin-name { font-size: 13px; font-weight: 600; color: var(--navy-800); }
 
-      .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+      .view-switch { display: flex; gap: 8px; margin-top: 24px; }
+      .view-pill { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,0.6); font-size: 13.5px; font-weight: 700; color: var(--ink-muted); }
+      .view-pill.active { background: var(--navy-900); color: #fff; border-color: var(--navy-900); }
+
+      .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
       .summary-chip { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,0.6); border: 1px solid var(--line); color: var(--ink-muted); }
       .summary-chip strong { color: var(--navy-900); font-family: var(--font-mono); }
       .summary-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
@@ -363,22 +638,47 @@ function DashStyles() {
       .mini-btn:disabled { opacity: 0.5; }
       .assign-select { width: 100%; font-size: 12px; padding: 7px 9px; border-radius: 7px; border: 1px solid var(--line); background: #fff; }
 
+      .registrations-panel { margin-top: 22px; }
+      .reg-search-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+      .reg-search-input { flex: 1; min-width: 220px; font-size: 13.5px; padding: 10px 14px; border-radius: 9px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.8); }
+      .reg-search-input:focus { outline: none; border-color: var(--teal-500); }
+      .reg-count { font-size: 12.5px; color: var(--ink-muted); font-family: var(--font-mono); white-space: nowrap; }
+      .reg-list { display: flex; flex-direction: column; gap: 10px; }
+      .reg-row {
+        background: #fff; border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer;
+        padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+        transition: box-shadow 0.15s ease;
+      }
+      .reg-row:hover { box-shadow: 0 8px 20px rgba(11,31,58,0.08); }
+      .reg-row-main { flex: 1; min-width: 240px; }
+      .reg-row-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .reg-status-chip {
+        font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: capitalize;
+        padding: 5px 11px; border-radius: 999px; white-space: nowrap; background: rgba(11,31,58,0.06); color: var(--navy-800);
+      }
+      .reg-status-chip.submitted { background: var(--status-new-bg); color: var(--status-new); }
+      .reg-status-chip.approved, .reg-status-chip.warranty_issued { background: var(--status-solved-bg); color: var(--status-solved); }
+      .reg-status-chip.rejected, .reg-status-chip.cancelled { background: #fdeceb; color: var(--status-danger); }
+      .reg-status-chip.under_verification { background: var(--status-pending-bg); color: var(--status-pending); }
+
       .modal-backdrop { position: fixed; inset: 0; background: rgba(11,19,30,0.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 20; }
       .modal-card { width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto; padding: 30px; }
+      .modal-card.wide { max-width: 720px; }
       .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
       .modal-card h2 { font-size: 21px; margin-bottom: 18px; }
-      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 18px; }
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 18px; margin-top: 10px; }
       .detail-item { display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px; }
       .detail-item.full { grid-column: 1 / -1; }
-      .detail-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal-600); font-weight: 700; }
+      .detail-label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal-600); font-weight: 700; margin-top: 18px; }
       .detail-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
-      .items-table { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+      .items-table { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 6px; }
       .item-line { background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
       .item-line-product { font-weight: 700; font-size: 13.5px; color: var(--navy-900); }
       .item-line-meta { font-size: 12px; color: var(--ink-muted); font-family: var(--font-mono); }
       .manager-note { margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--line); }
       .manager-photo { display: block; margin-top: 12px; max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
-      .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+      .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+      .delete-btn { color: var(--status-danger); }
 
       @media (max-width: 1100px) {
         .board-5 { grid-template-columns: repeat(3, 1fr); }
