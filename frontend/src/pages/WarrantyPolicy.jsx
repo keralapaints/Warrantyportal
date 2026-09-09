@@ -1,30 +1,18 @@
 import { Link } from "react-router-dom";
 
-// PLACEHOLDER CONTENT — replace every section below with Kerala Paints'
-// actual warranty terms once finalized. Structure follows what most paint
-// manufacturers publish (coverage period by product line, conditions,
-// exclusions, how to claim) but none of the specific numbers or wording
-// here are real yet.
-
-const COVERAGE = [
-  { line: "Exterior Emulsions (All in One, Silver Ex, Gold Ex ranges)", years: "5–7 years", note: "against peeling, cracking, and fading under normal conditions" },
-  { line: "Interior Emulsions (Silver In, Gold In ranges)", years: "2–4 years", note: "against peeling and cracking under normal indoor conditions" },
-  { line: "Waterproofing (Aqua Seal, Tough Seal, Sealer Prime)", years: "5–10 years", note: "against leakage when applied per specification" },
-  { line: "Primers, putty, and undercoats", years: "Not separately warrantied", note: "covered only as part of the full system warranty" },
-];
-
-const CONDITIONS = [
-  "The product must be registered within 30 days of purchase using the original invoice.",
-  "Application must follow the surface preparation and coating-system instructions on the product label.",
-  "Warranty applies only to the original purchaser and the registered property address.",
-  "Claims must include the warranty registration token generated at the time of registration.",
-];
-
-const EXCLUSIONS = [
-  "Damage from structural movement, dampness from external sources, or pre-existing surface defects.",
-  "Discoloration from environmental pollution, chemical exposure, or improper cleaning agents.",
-  "Products applied by unregistered or unauthorized applicators, where applicable.",
-  "Normal wear, minor color variation between batches, and cosmetic issues not affecting performance.",
+const TERMS = [
+  "Warranty applies only to products carrying an expressly declared warranty and is subject to the Kerala Paints Master Warranty Policy and applicable Product-Specific Warranty Terms.",
+  "The original purchase invoice must be retained throughout the warranty period.",
+  <>
+    Warranty must be registered at{" "}
+    <a href="https://www.keralapaints.com" target="_blank" rel="noreferrer">
+      www.keralapaints.com
+    </a>{" "}
+    → Warranty within 15 days of completion of paint application; otherwise, the voluntary
+    warranty shall not apply.
+  </>,
+  "Tinted/colour-mixed paints must be applied within 15 days of the invoice date, failing which the voluntary performance warranty shall not apply.",
+  "Before application, the customer/applicator must follow the product-specific surface preparation, mixing, dilution and application instructions available on the Kerala Paints website; non-compliance that causes or materially contributes to a failure may affect warranty coverage.",
 ];
 
 export default function WarrantyPolicy() {
@@ -35,44 +23,27 @@ export default function WarrantyPolicy() {
           <span className="eyebrow">Kerala Paints · Warranty</span>
           <h1>General Warranty Policy</h1>
           <p className="policy-intro">
-            This page summarizes the standard warranty terms across our product ranges. Exact
-            duration and conditions vary by product — always check the label of the specific
-            product you've purchased.
+            The key terms below summarize what every warranty registration is subject to. For the
+            complete Master Warranty Policy — including covered failures, exclusions, claim
+            procedures, and product-specific conditions — download the full document.
           </p>
 
-          <div className="policy-note">
-            Placeholder content — replace with Kerala Paints' finalized warranty terms.
-          </div>
-
-          <section className="policy-section">
-            <h2>Coverage by product line</h2>
-            <div className="coverage-table">
-              {COVERAGE.map((row) => (
-                <div className="coverage-row" key={row.line}>
-                  <div className="coverage-line">{row.line}</div>
-                  <div className="coverage-years">{row.years}</div>
-                  <div className="coverage-note">{row.note}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="policy-section">
-            <h2>Conditions for coverage</h2>
+          <section className="policy-section" style={{ marginTop: 22, paddingTop: 0, borderTop: "none" }}>
+            <h2>Warranty Terms</h2>
             <ul className="policy-list">
-              {CONDITIONS.map((c) => (
-                <li key={c}>{c}</li>
+              {TERMS.map((t, i) => (
+                <li key={i}>{t}</li>
               ))}
             </ul>
-          </section>
 
-          <section className="policy-section">
-            <h2>What's not covered</h2>
-            <ul className="policy-list">
-              {EXCLUSIONS.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
+            
+            <a
+              href="/documents/WarrantyPolicyGeneral.pdf"
+              download="WarrantyPolicyGeneral.pdf"
+              className="btn btn-primary download-btn"
+            >
+              ⬇ Download Master Warranty Policy (PDF)
+            </a>
           </section>
 
           <section className="policy-section">
@@ -111,23 +82,13 @@ function PolicyStyles() {
       @keyframes rise { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
       .policy-card h1 { font-size: 28px; margin-top: 6px; }
       .policy-intro { color: var(--ink-muted); margin-top: 10px; font-size: 14.5px; line-height: 1.6; }
-      .policy-note {
-        margin-top: 16px; background: #fdf0dd; color: #8a5a12; border-radius: 9px;
-        padding: 10px 14px; font-size: 12.5px; font-weight: 600;
-      }
       .policy-section { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); }
       .policy-section h2 { font-size: 15px; color: var(--navy-900); margin-bottom: 14px; }
       .policy-text { font-size: 14px; color: var(--ink); line-height: 1.6; }
-      .coverage-table { display: flex; flex-direction: column; gap: 10px; }
-      .coverage-row {
-        background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: 9px;
-        padding: 12px 14px;
-      }
-      .coverage-line { font-weight: 700; font-size: 13.5px; color: var(--navy-900); }
-      .coverage-years { font-family: var(--font-mono); font-size: 12.5px; color: var(--teal-600); font-weight: 700; margin-top: 4px; }
-      .coverage-note { font-size: 12.5px; color: var(--ink-muted); margin-top: 4px; }
-      .policy-list { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
-      .policy-list li { font-size: 13.5px; color: var(--ink); line-height: 1.55; }
+      .policy-list { padding-left: 20px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+      .policy-list li { font-size: 13.5px; color: var(--ink); line-height: 1.6; }
+      .policy-list a { color: var(--teal-600); font-weight: 600; text-decoration: underline; }
+      .download-btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
       .policy-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
       .back-link { display: inline-block; margin-top: 26px; font-size: 13.5px; color: var(--teal-600); font-weight: 600; text-decoration: none; }
       .back-link:hover { text-decoration: underline; }
