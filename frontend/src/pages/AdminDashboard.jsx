@@ -24,7 +24,7 @@ function productSummary(items) {
 
 export default function AdminDashboard() {
   const { name, logout } = useAuth();
-  const [view, setView] = useState("complaints"); // complaints | registrations
+  const [view, setView] = useState("complaints"); // complaints | registrations | activity
 
   const [complaints, setComplaints] = useState([]);
   const [counts, setCounts] = useState({ new: 0, assigned: 0, review: 0, pending: 0, solved: 0, total: 0 });
@@ -145,10 +145,18 @@ export default function AdminDashboard() {
           >
             Warranty Registrations
           </button>
+          <button
+            className={`view-pill ${view === "activity" ? "active" : ""}`}
+            onClick={() => setView("activity")}
+          >
+            Activity Log
+          </button>
         </div>
 
         {view === "registrations" ? (
           <RegistrationsPanel />
+        ) : view === "activity" ? (
+          <ActivityLogPanel />
         ) : (
           <>
             <div className="summary-row">
@@ -583,6 +591,103 @@ function Detail({ label, value, full }) {
   );
 }
 
+function formatDateTime(d) {
+  return new Date(d).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// Super Admin only cross-entity audit trail — claim assignments/status
+// changes, warranty registration create/edit/delete, lost-invoice
+// approve/reject, and new staff accounts.
+function ActivityLogPanel() {
+  const [logs, setLogs] = useState([]);
+  const [entityType, setEntityType] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async (pageNum, type) => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await client.get("/activity-log", {
+        params: { page: pageNum, limit: 30, ...(type ? { entityType: type } : {}) },
+      });
+      setLogs((prev) => (pageNum === 1 ? data.logs : [...prev, ...data.logs]));
+      setPage(data.page);
+      setPages(data.pages);
+      setTotal(data.total);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load the activity log.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load(1, entityType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityType]);
+
+  return (
+    <div className="activity-panel">
+      <div className="activity-filter-row">
+        <select
+          className="activity-filter-select"
+          value={entityType}
+          onChange={(e) => setEntityType(e.target.value)}
+        >
+          <option value="">All activity</option>
+          <option value="complaint">Claims</option>
+          <option value="warranty">Warranty Registrations</option>
+          <option value="lost_invoice">Lost-Invoice Requests</option>
+          <option value="staff">Staff Accounts</option>
+        </select>
+        <span className="reg-count">
+          {total} entr{total === 1 ? "y" : "ies"}
+        </span>
+      </div>
+
+      {error && <div className="dash-error">{error}</div>}
+
+      <div className="activity-list">
+        {loading && logs.length === 0 && <div className="empty-note">Loading…</div>}
+        {!loading && logs.length === 0 && <div className="empty-note">No activity yet.</div>}
+
+        {logs.map((log) => (
+          <div className="activity-row" key={log._id}>
+            <p className="activity-summary">{log.summary}</p>
+            <p className="activity-meta">
+              {log.actor?.username || "System"} · {formatDateTime(log.createdAt)}
+              {log.entityToken ? ` · ${log.entityToken}` : ""}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {page < pages && (
+        <div className="activity-load-more">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={loading}
+            onClick={() => load(page + 1, entityType)}
+          >
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DashStyles() {
   return (
     <style>{`
@@ -660,6 +765,15 @@ function DashStyles() {
       .reg-status-chip.approved, .reg-status-chip.warranty_issued { background: var(--status-solved-bg); color: var(--status-solved); }
       .reg-status-chip.rejected, .reg-status-chip.cancelled { background: #fdeceb; color: var(--status-danger); }
       .reg-status-chip.under_verification { background: var(--status-pending-bg); color: var(--status-pending); }
+
+      .activity-panel { margin-top: 22px; }
+      .activity-filter-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+      .activity-filter-select { font-size: 13.5px; padding: 9px 13px; border-radius: 9px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.8); }
+      .activity-list { display: flex; flex-direction: column; gap: 8px; }
+      .activity-row { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px 16px; }
+      .activity-summary { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
+      .activity-meta { font-size: 11.5px; color: var(--ink-muted); font-family: var(--font-mono); margin-top: 4px; }
+      .activity-load-more { display: flex; justify-content: center; margin-top: 16px; }
 
       .modal-backdrop { position: fixed; inset: 0; background: rgba(11,19,30,0.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 20; }
       .modal-card { width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto; padding: 30px; }

@@ -4,6 +4,7 @@ const WarrantyRegistration = require("../models/WarrantyRegistration");
 const Admin = require("../models/Admin");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { logActivity } = require("../utils/activityLog");
 
 const router = express.Router();
 
@@ -170,6 +171,16 @@ router.patch("/:id/assign", requireRole("admin"), async (req, res) => {
     await complaint.save();
 
     const populated = await complaint.populate("assignedTo", "username name");
+
+    await logActivity({
+      actor: req.admin,
+      action: "complaint.assigned",
+      entityType: "complaint",
+      entityId: complaint._id,
+      entityToken: complaint.token,
+      summary: `${req.admin.username} assigned claim ${complaint.token} to ${manager.name || manager.username}`,
+    });
+
     res.json(populated);
   } catch (err) {
     console.error(err);
@@ -204,6 +215,15 @@ router.patch(
       complaint.statusHistory.push({ status: "review", changedBy: req.admin.id });
       await complaint.save();
 
+      await logActivity({
+        actor: req.admin,
+        action: "complaint.submitted",
+        entityType: "complaint",
+        entityId: complaint._id,
+        entityToken: complaint.token,
+        summary: `${req.admin.username} submitted a repair report for claim ${complaint.token}`,
+      });
+
       res.json(complaint);
     } catch (err) {
       console.error(err);
@@ -228,6 +248,16 @@ router.patch(
       complaint.status = status;
       complaint.statusHistory.push({ status, changedBy: req.admin.id, note });
       await complaint.save();
+
+      await logActivity({
+        actor: req.admin,
+        action: "complaint.status_changed",
+        entityType: "complaint",
+        entityId: complaint._id,
+        entityToken: complaint.token,
+        summary: `${req.admin.username} marked claim ${complaint.token} as ${status}`,
+        meta: note ? { status, note } : { status },
+      });
 
       res.json(complaint);
     } catch (err) {

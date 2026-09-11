@@ -3,6 +3,7 @@ const LostInvoiceRequest = require("../models/LostInvoiceRequest");
 const WarrantyRegistration = require("../models/WarrantyRegistration");
 const Complaint = require("../models/Complaint");
 const { requireAdmin, requireRole } = require("../middleware/auth");
+const { logActivity } = require("../utils/activityLog");
 
 const router = express.Router();
 
@@ -118,6 +119,16 @@ router.patch("/:id/approve", async (req, res) => {
     request.reviewedAt = new Date();
     await request.save();
 
+    await logActivity({
+      actor: req.admin,
+      action: "lost_invoice.approved",
+      entityType: "lost_invoice",
+      entityId: request._id,
+      entityToken: request.token,
+      summary: `${req.admin.username} approved lost-invoice request ${request.token}, creating claim ${complaint.token}`,
+      meta: { matchedWarrantyToken: registration.token, claimToken: complaint.token },
+    });
+
     res.json({ message: "Claim created.", claimToken: complaint.token, request });
   } catch (err) {
     console.error(err);
@@ -140,6 +151,16 @@ router.patch("/:id/reject", async (req, res) => {
     request.reviewedBy = req.admin.id;
     request.reviewedAt = new Date();
     await request.save();
+
+    await logActivity({
+      actor: req.admin,
+      action: "lost_invoice.rejected",
+      entityType: "lost_invoice",
+      entityId: request._id,
+      entityToken: request.token,
+      summary: `${req.admin.username} rejected lost-invoice request ${request.token}`,
+      meta: reviewNote ? { reviewNote } : undefined,
+    });
 
     res.json({ message: "Request rejected.", request });
   } catch (err) {

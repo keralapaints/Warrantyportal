@@ -4,6 +4,7 @@ const OtpVerification = require("../models/OtpVerification");
 const Complaint = require("../models/Complaint");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
+const { logActivity } = require("../utils/activityLog");
 
 const router = express.Router();
 
@@ -269,6 +270,15 @@ router.post("/", requireRole("admin"), async (req, res) => {
 
     const registration = await WarrantyRegistration.create(payload);
 
+    await logActivity({
+      actor: req.admin,
+      action: "warranty.created",
+      entityType: "warranty",
+      entityId: registration._id,
+      entityToken: registration.token,
+      summary: `${req.admin.username} manually created warranty registration ${registration.token} for ${registration.customerName}`,
+    });
+
     res.status(201).json({ message: "Registration created.", registration });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -297,6 +307,8 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     const itemsError = validateItemsAndApplications(items, applications);
     if (itemsError) return res.status(400).json({ message: itemsError });
 
+    const previousStatus = registration.status;
+
     for (const field of TOP_LEVEL_FIELDS) {
       if (req.body[field] !== undefined) registration[field] = req.body[field];
     }
@@ -307,6 +319,20 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     if (status) registration.status = status;
 
     await registration.save();
+
+    const statusChanged = status && status !== previousStatus;
+    await logActivity({
+      actor: req.admin,
+      action: "warranty.updated",
+      entityType: "warranty",
+      entityId: registration._id,
+      entityToken: registration.token,
+      summary: statusChanged
+        ? `${req.admin.username} updated registration ${registration.token} (status: ${previousStatus} → ${registration.status})`
+        : `${req.admin.username} updated registration ${registration.token}`,
+      meta: statusChanged ? { from: previousStatus, to: registration.status } : undefined,
+    });
+
     res.json({ message: "Registration updated.", registration });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -335,6 +361,16 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
     }
 
     await WarrantyRegistration.deleteOne({ _id: registration._id });
+
+    await logActivity({
+      actor: req.admin,
+      action: "warranty.deleted",
+      entityType: "warranty",
+      entityId: registration._id,
+      entityToken: registration.token,
+      summary: `${req.admin.username} deleted warranty registration ${registration.token} (${registration.customerName})`,
+    });
+
     res.json({ message: "Registration deleted." });
   } catch (err) {
     console.error(err);

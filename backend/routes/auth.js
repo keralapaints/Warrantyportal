@@ -2,6 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const { requireAdmin, requireRole } = require("../middleware/auth");
+const { logActivity } = require("../utils/activityLog");
 
 const router = express.Router();
 
@@ -69,6 +70,15 @@ router.post("/staff", async (req, res) => {
       passwordHash,
       name: name || username,
       role,
+    });
+
+    await logActivity({
+      actor: req.admin,
+      action: "staff.created",
+      entityType: "staff",
+      entityId: staff._id,
+      entityToken: staff.username,
+      summary: `${req.admin.username} created a new ${role.replace("_", " ")} account (${staff.username})`,
     });
 
     res.status(201).json({

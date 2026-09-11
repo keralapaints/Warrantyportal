@@ -143,8 +143,9 @@ function ItemsList({ items }) {
         <div className="item-line" key={i}>
           <span className="item-line-product">{it.product}</span>
           <span className="item-line-meta">
-            Qty {it.quantity} · Batch {it.batchNo} · Code {it.code}
-          </span>
+  {it.shadeType} · {it.containers} × {it.packSize}
+  {it.totalQuantity ? ` (${it.totalQuantity})` : ""} · Batch {(it.batchNumbers || []).join(", ")}
+</span>
         </div>
       ))}
     </div>
