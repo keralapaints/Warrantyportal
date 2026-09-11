@@ -150,6 +150,15 @@ router.post("/register", async (req, res) => {
 
     const registration = await WarrantyRegistration.create(payload);
 
+    await logActivity({
+      actor: { username: "customer", role: "public" },
+      action: "warranty.created",
+      entityType: "warranty",
+      entityId: registration._id,
+      entityToken: registration.token,
+      summary: `${registration.customerName} self-registered warranty ${registration.token} via the public form`,
+    });
+
     // Clean up the OTP record now that it's served its purpose.
     await OtpVerification.deleteOne({ email: normalizedEmail });
 
