@@ -607,18 +607,28 @@ function formatDateTime(d) {
 function ActivityLogPanel() {
   const [logs, setLogs] = useState([]);
   const [entityType, setEntityType] = useState("");
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = useCallback(async (pageNum, type) => {
+  const load = useCallback(async (pageNum, filters) => {
     setLoading(true);
     setError("");
     try {
       const { data } = await client.get("/activity-log", {
-        params: { page: pageNum, limit: 30, ...(type ? { entityType: type } : {}) },
+        params: {
+          page: pageNum,
+          limit: 30,
+          ...(filters.entityType ? { entityType: filters.entityType } : {}),
+          ...(filters.search ? { search: filters.search } : {}),
+          ...(filters.dateFrom ? { from: filters.dateFrom } : {}),
+          ...(filters.dateTo ? { to: filters.dateTo } : {}),
+        },
       });
       setLogs((prev) => (pageNum === 1 ? data.logs : [...prev, ...data.logs]));
       setPage(data.page);
@@ -632,13 +642,26 @@ function ActivityLogPanel() {
   }, []);
 
   useEffect(() => {
-    load(1, entityType);
+    load(1, { entityType, search, dateFrom, dateTo });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType]);
+  }, [entityType, dateFrom, dateTo]);
+
+  useEffect(() => {
+    const t = setTimeout(() => load(1, { entityType, search, dateFrom, dateTo }), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   return (
     <div className="activity-panel">
       <div className="activity-filter-row">
+        <input
+          type="text"
+          placeholder="Search summary, token, or staff name…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="reg-search-input"
+        />
         <select
           className="activity-filter-select"
           value={entityType}
@@ -650,6 +673,38 @@ function ActivityLogPanel() {
           <option value="lost_invoice">Lost-Invoice Requests</option>
           <option value="staff">Staff Accounts</option>
         </select>
+        <label className="activity-date-field">
+          From
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </label>
+        <label className="activity-date-field">
+          To
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </label>
+        {(search || entityType || dateFrom || dateTo) && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setSearch("");
+              setEntityType("");
+              setDateFrom("");
+              setDateTo("");
+            }}
+          >
+            Clear filters
+          </button>
+        )}
         <span className="reg-count">
           {total} entr{total === 1 ? "y" : "ies"}
         </span>
@@ -659,7 +714,7 @@ function ActivityLogPanel() {
 
       <div className="activity-list">
         {loading && logs.length === 0 && <div className="empty-note">Loading…</div>}
-        {!loading && logs.length === 0 && <div className="empty-note">No activity yet.</div>}
+        {!loading && logs.length === 0 && <div className="empty-note">No activity found.</div>}
 
         {logs.map((log) => (
           <div className="activity-row" key={log._id}>
@@ -678,7 +733,7 @@ function ActivityLogPanel() {
             type="button"
             className="btn btn-ghost"
             disabled={loading}
-            onClick={() => load(page + 1, entityType)}
+            onClick={() => load(page + 1, { entityType, search, dateFrom, dateTo })}
           >
             {loading ? "Loading…" : "Load more"}
           </button>
@@ -769,6 +824,8 @@ function DashStyles() {
       .activity-panel { margin-top: 22px; }
       .activity-filter-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
       .activity-filter-select { font-size: 13.5px; padding: 9px 13px; border-radius: 9px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.8); }
+      .activity-date-field { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-muted); font-weight: 600; }
+      .activity-date-field input[type="date"] { font-size: 12.5px; padding: 7px 9px; border-radius: 7px; border: 1.5px solid var(--line); background: rgba(255,255,255,0.8); }
       .activity-list { display: flex; flex-direction: column; gap: 8px; }
       .activity-row { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px 16px; }
       .activity-summary { font-size: 13.5px; color: var(--ink); line-height: 1.5; }
