@@ -97,5 +97,46 @@ async function sendRegistrationApprovedEmail(registration) {
     throw new Error(error.message || "Failed to send email via Resend");
   }
 }
+async function sendClaimSolvedEmail({ email, customerName, token, items }) {
+  const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+  const trackUrl = `${baseUrl}/track`;
 
-module.exports = { sendOtpEmail, sendRegistrationApprovedEmail };
+  const productList = (items || [])
+    .map((it) => `<li>${escapeHtml(it.product)}${it.packSize ? ` — ${escapeHtml(it.packSize)}` : ""}</li>`)
+    .join("");
+
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Your Kerala Paints warranty claim ${token} has been resolved`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <p style="font-size: 14px; color: #56697a;">Kerala Paints · Warranty</p>
+        <h2 style="color: #0b1f3a;">Your warranty claim has been resolved</h2>
+        <p style="font-size: 14px; color: #0b1f2a;">Hi ${escapeHtml(customerName)},</p>
+        <p style="font-size: 14px; color: #0b1f2a;">
+          Our team has reviewed your warranty claim and marked it as resolved.
+        </p>
+        <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0f8a80; margin: 16px 0;">
+          ${escapeHtml(token)}
+        </div>
+        <p style="font-size: 14px; color: #0b1f2a; margin-bottom: 6px;">Claim covered:</p>
+        <ul style="font-size: 14px; color: #0b1f2a; margin-top: 0;">${productList}</ul>
+        <p style="font-size: 14px; color: #0b1f2a;">
+          You can check the status of this claim any time at
+          <a href="${escapeHtml(trackUrl)}">${escapeHtml(trackUrl)}</a> using the claim number above.
+        </p>
+        <p style="font-size: 13px; color: #56697a;">
+          If you feel the issue has not been resolved, please contact us at
+          warranty@keralapaints.com or +91 9539 320 999 and quote your claim number.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Resend error:", error);
+    throw new Error(error.message || "Failed to send email via Resend");
+  }
+}
+module.exports = { sendOtpEmail, sendRegistrationApprovedEmail, sendClaimSolvedEmail };

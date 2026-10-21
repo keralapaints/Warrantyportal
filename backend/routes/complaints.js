@@ -5,8 +5,31 @@ const Admin = require("../models/Admin");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const { logActivity } = require("../utils/activityLog");
+const { sendClaimSolvedEmail } = require("../utils/email");
 
 const router = express.Router();
+
+// Emails the customer when their claim is marked Solved. Never throws — a mail
+// problem must not stop the status change from being saved.
+async function notifyClaimSolved(complaint) {
+  try {
+    const registration = await WarrantyRegistration.findOne({ token: complaint.warrantyToken });
+    if (!registration || !registration.email) {
+      console.warn(`Solved email skipped for ${complaint.token}: no registration email on file`);
+      return "skipped";
+    }
+    await sendClaimSolvedEmail({
+      email: registration.email,
+      customerName: complaint.customerName,
+      token: complaint.token,
+      items: complaint.items,
+    });
+    return "sent";
+  } catch (err) {
+    console.error("Claim solved email failed:", err.message);
+    return "failed";
+  }
+}
 
 const PUBLIC_FIELDS = [
   "date",
@@ -245,6 +268,8 @@ router.patch(
       const complaint = await Complaint.findById(req.params.id);
       if (!complaint) return res.status(404).json({ message: "Complaint not found." });
 
+      const previousStatus = complaint.status;
+
       complaint.status = status;
       complaint.statusHistory.push({ status, changedBy: req.admin.id, note });
       await complaint.save();
@@ -258,6 +283,11 @@ router.patch(
         summary: `${req.admin.username} marked claim ${complaint.token} as ${status}`,
         meta: note ? { status, note } : { status },
       });
+
+      // Email the customer only when the claim newly becomes Solved.
+      if (status === "solved" && previousStatus !== "solved") {
+        await notifyClaimSolved(complaint);
+      }
 
       res.json(complaint);
     } catch (err) {
