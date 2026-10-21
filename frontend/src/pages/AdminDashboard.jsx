@@ -277,6 +277,7 @@ function RegistrationsPanel() {
   const [formInitialData, setFormInitialData] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [notice, setNotice] = useState(null);
 
   const load = useCallback(async (searchTerm = "") => {
     setLoading(true);
@@ -310,11 +311,18 @@ function RegistrationsPanel() {
     setFormMode("edit");
     setSelected(null);
   }
-  function handleSaved() {
-    setFormMode(null);
-    setFormInitialData(null);
-    load(search);
-  }
+  function handleSaved(_saved, approvalEmail) {
+  setFormMode(null);
+  setFormInitialData(null);
+  setNotice(
+    approvalEmail === "sent"
+      ? { text: "Registration saved. Approval email sent to the customer.", error: false }
+      : approvalEmail === "failed"
+      ? { text: "Registration saved, but the approval email could not be sent. Check the customer's email address.", error: true }
+      : null
+  );
+  load(search);
+}
 
   async function handleDelete(reg) {
     setDeleteError("");
@@ -361,7 +369,7 @@ function RegistrationsPanel() {
 
       {error && <div className="dash-error">{error}</div>}
       {deleteError && <div className="dash-error">{deleteError}</div>}
-
+       {notice && <div className={notice.error ? "dash-error" : "dash-notice"}>{notice.text}</div>}
       <div className="reg-list">
         {loading && <div className="empty-note">Loading…</div>}
         {!loading && registrations.length === 0 && <div className="empty-note">No registrations found.</div>}

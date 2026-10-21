@@ -326,7 +326,7 @@ export default function AdminRegistrationForm({ mode, initialData, registrationI
           ? await client.patch(`/warranty/${registrationId}`, payload)
           : await client.post("/warranty", payload);
 
-      onSaved(data.registration);
+     onSaved(data.registration, data.approvalEmail);
     } catch (err) {
       setSubmitError(err.response?.data?.message || "Could not save. Please try again.");
       window.scrollTo({ top: 0, behavior: "smooth" });

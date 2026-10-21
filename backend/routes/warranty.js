@@ -5,6 +5,7 @@ const Complaint = require("../models/Complaint");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 const { logActivity } = require("../utils/activityLog");
+const { sendRegistrationApprovedEmail } = require("../utils/email");
 
 const router = express.Router();
 
@@ -23,6 +24,18 @@ const REQUIRED_DECLARATIONS = [
   "infoAccurate", "applicationAccurate", "policyAccepted",
   "eligibilityUnderstood", "inspectionAccess", "privacyConsent",
 ];
+
+// Sends the "registration approved" email. Never throws — a mail problem
+// must not stop the registration from being saved.
+async function notifyApproved(registration) {
+  try {
+    await sendRegistrationApprovedEmail(registration);
+    return "sent";
+  } catch (err) {
+    console.error("Approval email failed:", err.message);
+    return "failed";
+  }
+}
 
 // Shared validation for the product/application arrays — used by the
 // public register, and by admin create/update.
@@ -288,7 +301,11 @@ router.post("/", requireRole("admin"), async (req, res) => {
       summary: `${req.admin.username} manually created warranty registration ${registration.token} for ${registration.customerName}`,
     });
 
-    res.status(201).json({ message: "Registration created.", registration });
+    // Created directly as APPROVED -> tell the customer.
+    const approvalEmail =
+      registration.status === "APPROVED" ? await notifyApproved(registration) : "not_applicable";
+
+    res.status(201).json({ message: "Registration created.", registration, approvalEmail });
   } catch (err) {
     if (err.name === "ValidationError") {
       const errors = Object.fromEntries(
@@ -307,6 +324,8 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     const registration = await WarrantyRegistration.findById(req.params.id);
     if (!registration) return res.status(404).json({ message: "Registration not found." });
 
+    const previousStatus = registration.status;
+
     const { items, applications, surfaceCondition, declarations, status } = req.body;
 
     if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
@@ -315,8 +334,6 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
 
     const itemsError = validateItemsAndApplications(items, applications);
     if (itemsError) return res.status(400).json({ message: itemsError });
-
-    const previousStatus = registration.status;
 
     for (const field of TOP_LEVEL_FIELDS) {
       if (req.body[field] !== undefined) registration[field] = req.body[field];
@@ -342,7 +359,14 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
       meta: statusChanged ? { from: previousStatus, to: registration.status } : undefined,
     });
 
-    res.json({ message: "Registration updated.", registration });
+    // Email the customer only when the status newly becomes APPROVED —
+    // not on every later edit of an already-approved registration.
+    let approvalEmail = "not_applicable";
+    if (previousStatus !== "APPROVED" && registration.status === "APPROVED") {
+      approvalEmail = await notifyApproved(registration);
+    }
+
+    res.json({ message: "Registration updated.", registration, approvalEmail });
   } catch (err) {
     if (err.name === "ValidationError") {
       const errors = Object.fromEntries(
