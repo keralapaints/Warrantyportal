@@ -26,9 +26,9 @@ async function sendOtpEmail(email, otp) {
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <p style="font-size: 14px; color: #56697a;">Kerala Paints · Warranty Registration</p>
-        <h2 style="color: #0b1f3a;">Verify your email</h2>
+        <h2 style="color: #1f2160;">Verify your email</h2>
         <p style="font-size: 14px; color: #0b1f2a;">Use this code to verify your email and continue your warranty registration:</p>
-        <div style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #0f8a80; margin: 20px 0;">
+        <div style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #0a78ab; margin: 20px 0;">
           ${otp}
         </div>
         <p style="font-size: 13px; color: #56697a;">This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>
@@ -67,12 +67,12 @@ async function sendRegistrationApprovedEmail(registration) {
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
         <p style="font-size: 14px; color: #56697a;">Kerala Paints · Warranty</p>
-        <h2 style="color: #0b1f3a;">Your warranty registration is approved</h2>
+        <h2 style="color: #1f2160;">Your warranty registration is approved</h2>
         <p style="font-size: 14px; color: #0b1f2a;">Hi ${escapeHtml(registration.customerName)},</p>
         <p style="font-size: 14px; color: #0b1f2a;">
           Good news — we've reviewed and approved your warranty registration.
         </p>
-        <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0f8a80; margin: 16px 0;">
+        <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0a78ab; margin: 16px 0;">
           ${escapeHtml(registration.token)}
         </div>
         <p style="font-size: 14px; color: #0b1f2a; margin-bottom: 6px;">Registered products:</p>
@@ -112,12 +112,12 @@ async function sendClaimSolvedEmail({ email, customerName, token, items }) {
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
         <p style="font-size: 14px; color: #56697a;">Kerala Paints · Warranty</p>
-        <h2 style="color: #0b1f3a;">Your warranty claim has been resolved</h2>
+        <h2 style="color: #1f2160;">Your warranty claim has been resolved</h2>
         <p style="font-size: 14px; color: #0b1f2a;">Hi ${escapeHtml(customerName)},</p>
         <p style="font-size: 14px; color: #0b1f2a;">
           Our team has reviewed your warranty claim and marked it as resolved.
         </p>
-        <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0f8a80; margin: 16px 0;">
+        <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0a78ab; margin: 16px 0;">
           ${escapeHtml(token)}
         </div>
         <p style="font-size: 14px; color: #0b1f2a; margin-bottom: 6px;">Claim covered:</p>

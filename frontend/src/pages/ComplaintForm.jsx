@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import client from "../api/client";
 import { DISTRICTS, OUTLETS_BY_DISTRICT, PRODUCTS, QUANTITIES_BY_PRODUCT } from "../data/options";
 
-const SWATCHES = ["#0f8a80", "#2f6fed", "#d97a13", "#12946f", "#0b1f3a"];
+const SWATCHES = ["#0a78ab", "#2f6fed", "#d97a13", "#12946f", "#1f2160"];
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 

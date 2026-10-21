@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
+import FormProgress from "../components/FormProgress";
 import {
   DISTRICTS_BY_STATE,
   OUTLETS_BY_DISTRICT,
@@ -394,6 +395,7 @@ export default function WarrantyRegister() {
   return (
     <div className="page-shell">
       <div className="container narrow">
+        <FormProgress />
         <div className="glass-card form-card">
           <span className="eyebrow">Kerala Paints · Warranty</span>
           <h1>Register your warranty</h1>
@@ -873,7 +875,7 @@ function FormStyles() {
       .field select:disabled { opacity: 0.6; }
       .field .hint { font-size: 12px; color: var(--ink-muted); }
       .items-list { display: flex; flex-direction: column; gap: 16px; }
-      .item-row { background: rgba(15,138,128,0.05); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px 16px 4px; }
+      .item-row { background: rgba(38,178,231,0.05); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px 16px 4px; }
       .item-row-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
       .item-number { font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--teal-600); }
       .item-remove { border: none; background: none; color: var(--status-danger); font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -885,12 +887,12 @@ function FormStyles() {
       .add-packsize-btn:hover { text-decoration: underline; }
       .warranty-chip {
         display: inline-block; margin: -4px 0 14px; padding: 6px 12px; border-radius: 999px;
-        background: rgba(15,138,128,0.12); color: var(--teal-600); font-size: 12px; font-weight: 600;
+        background: rgba(38,178,231,0.12); color: var(--teal-600); font-size: 12px; font-weight: 600;
       }
       .surface-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
       .declarations-list { display: flex; flex-direction: column; gap: 10px; }
       .decl-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.5; background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; cursor: pointer; }
-      .decl-row.optional { background: rgba(15,138,128,0.04); }
+      .decl-row.optional { background: rgba(38,178,231,0.04); }
       .decl-row input { margin-top: 3px; }
       .policy-link { color: var(--teal-600); font-weight: 600; }
       .form-actions { margin-top: 30px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -903,7 +905,7 @@ function FormStyles() {
       .email-row { display: flex; gap: 8px; align-items: stretch; }
       .email-row input { flex: 1; }
       .otp-send-btn { white-space: nowrap; font-size: 12.5px; padding: 0 16px; }
-      .verified-input { background: rgba(15,138,128,0.06); border-color: rgba(15,138,128,0.35) !important; }
+      .verified-input { background: rgba(38,178,231,0.06); border-color: rgba(38,178,231,0.35) !important; }
       .verified-badge {
         display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; font-weight: 700;
         color: var(--teal-600); white-space: nowrap;
