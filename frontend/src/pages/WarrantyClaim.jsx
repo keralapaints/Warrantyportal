@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import client from "../api/client";
+function formatDate(d) {
+  return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
 
 export default function WarrantyClaim() {
   const [step, setStep] = useState("verify");
@@ -9,10 +12,12 @@ export default function WarrantyClaim() {
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [registration, setRegistration] = useState(null);
+  const [blockedMessage, setBlockedMessage] = useState("");
 
   async function handleVerify(e) {
     e.preventDefault();
     setVerifyError("");
+    setBlockedMessage("");
     if (!invoiceNumber.trim() || !contactNumber.trim()) {
       setVerifyError("Enter both your invoice number and mobile number.");
       return;
@@ -22,6 +27,13 @@ export default function WarrantyClaim() {
       const { data } = await client.get("/warranty/verify", {
         params: { invoiceNumber: invoiceNumber.trim(), contactNumber: contactNumber.trim() },
       });
+           // Registration found, but a claim can't be filed yet (still under review,
+      // rejected, cancelled, or the warranty has ended): say so instead of
+      // letting the person fill in a claim that would be refused.
+      if (data.claimable === false) {
+        setBlockedMessage(data.claimMessage || "A claim can't be filed on this registration right now.");
+        return;
+      }
       setRegistration(data);
       setStep("claim");
     } catch (err) {
@@ -62,7 +74,7 @@ export default function WarrantyClaim() {
                 <Link to="/warranty/register" className="inline-link">Register now</Link>
               </div>
             )}
-
+            {blockedMessage && <div className="verify-error">{blockedMessage}</div>}
             <button type="submit" className="btn btn-primary" disabled={verifying} style={{ width: "100%", marginTop: 20 }}>
               {verifying ? "Checking…" : "Verify & continue"}
             </button>
@@ -80,7 +92,11 @@ export default function WarrantyClaim() {
 }
 
 function ClaimForm({ registration, onBack }) {
-  const [selected, setSelected] = useState(() => new Set([0]));
+    // Start with the first product whose warranty is still running selected.
+  const [selected, setSelected] = useState(() => {
+    const first = registration.items.findIndex((it) => !it.warrantyExpired);
+    return new Set(first === -1 ? [] : [first]);
+  });
   const [complaintText, setComplaintText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -166,12 +182,17 @@ function ClaimForm({ registration, onBack }) {
               <label>Which product(s) is this about?</label>
               <div className="item-checklist">
                 {registration.items.map((it, i) => (
-                  <label className="item-check-row" key={i}>
-                    <input type="checkbox" checked={selected.has(i)} onChange={() => toggleItem(i)} />
+                                    <label className="item-check-row" key={i} style={it.warrantyExpired ? { opacity: 0.65 } : undefined}>
+                    <input type="checkbox" checked={selected.has(i)} disabled={it.warrantyExpired} onChange={() => toggleItem(i)} />
                     <span>
                       <strong>{it.product}</strong> — {it.shadeType} · {it.containers} × {it.packSize}
                       {it.totalQuantity ? ` (${it.totalQuantity})` : ""} · Batch{" "}
                       {(it.batchNumbers || []).join(", ")}
+                      {it.warrantyExpiresOn && (
+                        <em style={{ display: "block", marginTop: 4, fontStyle: "normal", fontSize: 12.5, color: it.warrantyExpired ? "var(--status-danger)" : "var(--ink-muted)" }}>
+                          {it.warrantyExpired ? "Warranty ended" : "Warranty valid until"} {formatDate(it.warrantyExpiresOn)}
+                        </em>
+                      )}
                     </span>
                   </label>
                 ))}

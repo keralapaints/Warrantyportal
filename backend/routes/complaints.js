@@ -6,7 +6,8 @@ const { requireAdmin, requireRole } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const { logActivity } = require("../utils/activityLog");
 const { sendClaimSolvedEmail } = require("../utils/email");
-
+const { containsRegex, asText, exactRegex } = require("../utils/regex");
+const { claimEligibility, itemCoverage, matchRequestedItems, formatDate } = require("../utils/claimEligibility");
 const router = express.Router();
 
 // Emails the customer when their claim is marked Solved. Never throws — a mail
@@ -44,30 +45,58 @@ const PUBLIC_FIELDS = [
 
 router.post("/", async (req, res) => {
   try {
-    const { warrantyToken } = req.body;
+        const warrantyToken = asText(req.body.warrantyToken);
     if (!warrantyToken) {
       return res.status(400).json({ message: "A warranty registration is required to file a claim." });
     }
 
-    const registration = await WarrantyRegistration.findOne({
-      token: warrantyToken.trim().toUpperCase(),
-    });
-    if (!registration) {
+    // WR numbers run in sequence and are easy to guess, so the person must also
+    // give the invoice number and mobile number the registration was made with.
+    // One message for every kind of mismatch, so nobody can probe which WR numbers exist.
+    const registration = await WarrantyRegistration.findOne({ token: warrantyToken.toUpperCase() });
+    const invoiceRe = exactRegex(req.body.invoiceNumber);
+    const mobile = asText(req.body.contactNumber);
+    const detailsMatch =
+      registration && invoiceRe && mobile && invoiceRe.test(registration.invoiceNumber) && registration.mobileNumber === mobile;
+    if (!detailsMatch) {
       return res.status(400).json({
-        message: "We couldn't verify that warranty registration. Please register your product first.",
+        message: "We couldn't verify those details. Check the invoice number and mobile number you registered with.",
       });
     }
 
-    const payload = { warrantyToken: registration.token };
-    for (const field of PUBLIC_FIELDS) {
-      if (req.body[field] !== undefined) payload[field] = req.body[field];
+    // Only approved registrations, and only products whose warranty is still running.
+    const eligibility = claimEligibility(registration);
+    if (!eligibility.claimable) {
+      return res.status(403).json({ message: eligibility.message, code: eligibility.code });
     }
 
-    if (Array.isArray(req.body.items)) {
-      payload.items = req.body.items;
+    // Take the product lines from the registration itself, not from the request.
+    const matched = matchRequestedItems(registration, req.body.items);
+    if (matched.error) {
+      return res.status(400).json({ message: matched.error });
+    }
+    const coverage = itemCoverage(registration);
+    const expired = matched.indexes.map((i) => coverage[i]).find((c) => c.expired);
+    if (expired) {
+      return res.status(403).json({
+        code: "EXPIRED",
+        message: `The warranty on ${expired.product} ended on ${formatDate(expired.expiresOn)}, so a claim can't be filed for it.`,
+      });
     }
 
-    const complaint = await Complaint.create(payload);
+    // Customer details and dates also come from the registration / the server clock.
+    const complaint = await Complaint.create({
+      warrantyToken: registration.token,
+      date: new Date(),
+      district: registration.siteDistrict,
+      outlet: registration.outlet,
+      customerName: registration.customerName,
+      contactNumber: registration.mobileNumber,
+      address: `${registration.siteName}, ${registration.street}`,
+      invoiceNumber: registration.invoiceNumber,
+      complaintText: req.body.complaintText,
+      items: matched.indexes.map((i) => registration.items[i].toObject()),
+    });
 
     res.status(201).json({
       message: "Claim submitted successfully.",
@@ -111,8 +140,8 @@ router.get("/", async (req, res) => {
     if (status && Complaint.STATUS_VALUES.includes(status)) {
       filter.status = status;
     }
-    if (search) {
-      const re = new RegExp(search.trim(), "i");
+      const re = containsRegex(search);
+    if (re) {
       filter.$or = [
         { token: re },
         { customerName: re },

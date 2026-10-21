@@ -1,6 +1,7 @@
 const express = require("express");
 const ActivityLog = require("../models/ActivityLog");
 const { requireAdmin, requireRole } = require("../middleware/auth");
+const { containsRegex } = require("../utils/regex");
 
 const router = express.Router();
 
@@ -21,8 +22,8 @@ router.get("/", async (req, res) => {
     if (req.query.action && ActivityLog.ACTIONS.includes(req.query.action)) {
       filter.action = req.query.action;
     }
-    if (req.query.search) {
-      const re = new RegExp(req.query.search.trim(), "i");
+      const re = containsRegex(req.query.search);
+    if (re) {
       // Matches the summary sentence, the entity's token, or who did it.
       filter.$or = [{ summary: re }, { entityToken: re }, { "actor.username": re }];
     }

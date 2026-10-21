@@ -6,8 +6,9 @@ const { requireAdmin, requireRole } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 const { logActivity } = require("../utils/activityLog");
 const { sendRegistrationApprovedEmail } = require("../utils/email");
-
+const { asText, containsRegex, exactRegex } = require("../utils/regex");
 const router = express.Router();
+const { claimEligibility } = require("../utils/claimEligibility");
 
 const REGISTRATION_WINDOW_DAYS = 15;
 
@@ -137,11 +138,13 @@ router.post("/register", async (req, res) => {
       }
     }
 
-    if (req.body.invoiceNumber && req.body.siteName && Array.isArray(items)) {
+      const invoiceRe = exactRegex(req.body.invoiceNumber);
+    const siteRe = exactRegex(req.body.siteName);
+    if (invoiceRe && siteRe && Array.isArray(items)) {
       const productNames = items.map((it) => it.product).filter(Boolean);
       const existing = await WarrantyRegistration.findOne({
-        invoiceNumber: new RegExp(`^${req.body.invoiceNumber.trim()}$`, "i"),
-        siteName: new RegExp(`^${req.body.siteName.trim()}$`, "i"),
+        invoiceNumber: invoiceRe,
+        siteName: siteRe,
         "items.product": { $in: productNames },
       });
       if (existing) {
@@ -194,16 +197,17 @@ router.post("/register", async (req, res) => {
 
 router.get("/verify", async (req, res) => {
   try {
-    const { invoiceNumber, contactNumber } = req.query;
-    if (!invoiceNumber || !contactNumber) {
+       const invoiceRe = exactRegex(req.query.invoiceNumber);
+    const mobile = asText(req.query.contactNumber);
+    if (!invoiceRe || !mobile) {
       return res
         .status(400)
         .json({ registered: false, message: "Enter your invoice number and mobile number." });
     }
 
     const registration = await WarrantyRegistration.findOne({
-      invoiceNumber: new RegExp(`^${invoiceNumber.trim()}$`, "i"),
-      mobileNumber: contactNumber.trim(),
+           invoiceNumber: invoiceRe,
+      mobileNumber: mobile,
     });
 
     if (!registration) {
@@ -213,8 +217,14 @@ router.get("/verify", async (req, res) => {
       });
     }
 
+        // The Claim page uses this to explain "still under review" / "warranty ended"
+    // up front, instead of letting the person fill in a claim that will be refused.
+    const eligibility = claimEligibility(registration);
+
     res.json({
       registered: true,
+      claimable: eligibility.claimable,
+      claimMessage: eligibility.message,
       token: registration.token,
       status: registration.status,
       customerName: registration.customerName,
@@ -225,7 +235,11 @@ router.get("/verify", async (req, res) => {
       purchaseDistrict: registration.purchaseDistrict,
       outlet: registration.outlet,
       invoiceNumber: registration.invoiceNumber,
-      items: registration.items,
+  items: registration.items.map((item, i) => ({
+        ...item.toObject(),
+        warrantyExpiresOn: eligibility.items[i].expiresOn,
+        warrantyExpired: eligibility.items[i].expired,
+      })),
     });
   } catch (err) {
     console.error(err);
@@ -243,8 +257,8 @@ router.get("/", async (req, res) => {
     const { search, status } = req.query;
     const filter = {};
     if (status) filter.status = status;
-    if (search) {
-      const re = new RegExp(search.trim(), "i");
+        const re = containsRegex(search);
+    if (re) {
       filter.$or = [{ token: re }, { customerName: re }, { mobileNumber: re }, { invoiceNumber: re }];
     }
     const registrations = await WarrantyRegistration.find(filter).sort({ createdAt: -1 });

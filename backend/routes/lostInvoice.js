@@ -4,6 +4,7 @@ const WarrantyRegistration = require("../models/WarrantyRegistration");
 const Complaint = require("../models/Complaint");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const { logActivity } = require("../utils/activityLog");
+const { containsRegex } = require("../utils/regex");
 
 const router = express.Router();
 
@@ -55,8 +56,8 @@ router.get("/", async (req, res) => {
     const { status, search } = req.query;
     const filter = {};
     if (status) filter.status = status;
-    if (search) {
-      const re = new RegExp(search.trim(), "i");
+       const re = containsRegex(search);
+    if (re) {
       filter.$or = [{ token: re }, { customerName: re }, { mobileNumber: re }, { siteName: re }];
     }
     const requests = await LostInvoiceRequest.find(filter).sort({ createdAt: -1 });
