@@ -9,6 +9,7 @@ import {
   WARRANTY_YEARS_BY_PRODUCT,
   STATES,
 } from "../data/options";
+import { downloadWarrantyPdf } from "../utils/warrantyPdf";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const YES_NO_UNKNOWN = ["Yes", "No", "Not Known"];
@@ -85,6 +86,8 @@ export default function WarrantyRegister() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const [submitError, setSubmitError] = useState("");
 
   // --- Email OTP state ---
@@ -329,6 +332,31 @@ export default function WarrantyRegister() {
     }
   }
 
+  // Builds the downloadable PDF in the browser from what the customer just submitted.
+  async function handleDownloadPdf() {
+    setPdfError("");
+    setPdfBusy(true);
+    try {
+      await downloadWarrantyPdf({
+        token: result.token,
+        status: result.status,
+        form: {
+          ...form,
+          items: form.items.map((it) => ({
+            ...it,
+            warrantyPeriod: WARRANTY_YEARS_BY_PRODUCT[it.product] || "",
+          })),
+        },
+        claimUrl: `${window.location.origin}/claim`,
+      });
+    } catch (err) {
+      console.error(err);
+      setPdfError("Could not create the PDF. Please try again.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   if (result) {
     return (
       <div className="page-shell">
@@ -343,10 +371,19 @@ export default function WarrantyRegister() {
             <div className="token-badge token-badge-lg">{result.token}</div>
             <p className="status-note">Status: {result.status.replace(/_/g, " ")}</p>
             <div className="confirm-actions">
-              <Link className="btn btn-primary" to="/">
+              <button type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+                {pdfBusy ? "Preparing PDF…" : "⬇ Download registration PDF"}
+              </button>
+              <Link className="btn btn-ghost" to="/">
                 Back to home
               </Link>
             </div>
+            {pdfError && (
+              <p className="confirm-copy" style={{ color: "var(--status-danger)" }}>{pdfError}</p>
+            )}
+            <p className="confirm-copy">
+              Keep this PDF. You'll need the invoice number and mobile number on it to file a claim.
+            </p>
           </div>
         </div>
         <FormStyles />
