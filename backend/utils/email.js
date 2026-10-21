@@ -7,6 +7,17 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // to something like "Kerala Paints <warranty@yourdomain.com>".
 const FROM_ADDRESS = process.env.RESEND_FROM || "Kerala Paints <onboarding@resend.dev>";
 
+// Customer-supplied values (name, product text) end up inside HTML emails,
+// so escape them rather than trusting them.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function sendOtpEmail(email, otp) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
@@ -25,15 +36,15 @@ async function sendOtpEmail(email, otp) {
     `,
   });
 
-  // Customer-supplied values (name, product text) end up inside HTML emails,
-// so escape them rather than trusting them.
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  // The Resend SDK never throws on API errors — it always resolves with
+  // { data, error }. Without this check, a bad API key or unverified sender
+  // would silently "succeed" while no email was ever actually sent.
+  if (error) {
+    console.error("Resend error:", error);
+    throw new Error(error.message || "Failed to send email via Resend");
+  }
+
+  return data;
 }
 
 async function sendRegistrationApprovedEmail(registration) {
@@ -88,4 +99,3 @@ async function sendRegistrationApprovedEmail(registration) {
 }
 
 module.exports = { sendOtpEmail, sendRegistrationApprovedEmail };
-}
