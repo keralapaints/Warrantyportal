@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+const kpLogo = "/documents/kerala-paints-logo.png";
 
 const STEPS = [
   {
@@ -49,7 +50,7 @@ export default function Home() {
         <header className="home-header">
           <img
             className="home-logo"
-            src="/kerala-paints-logo.png"
+            src="/documents/kerala-paints-logo.png"
             alt="Kerala Paints, Colours of Care"
             width="115"
             height="64"
