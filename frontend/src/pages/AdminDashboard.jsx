@@ -314,7 +314,7 @@ function RegistrationsPanel() {
     setFormMode("edit");
     setSelected(null);
   }
-  function handleSaved(_saved, approvalEmail) {
+    function handleSaved(_saved, approvalEmail, rejectionEmail) {
     setFormMode(null);
     setFormInitialData(null);
     setNotice(
@@ -322,6 +322,10 @@ function RegistrationsPanel() {
         ? { text: "Registration saved. Approval email sent to the customer.", error: false }
         : approvalEmail === "failed"
         ? { text: "Registration saved, but the approval email could not be sent. Check the customer's email address.", error: true }
+        : rejectionEmail === "sent"
+        ? { text: "Registration rejected. The customer has been emailed the reason.", error: false }
+        : rejectionEmail === "failed"
+        ? { text: "Registration rejected, but the email could not be sent. Check the customer's email address.", error: true }
         : null
     );
     load(search);
@@ -424,7 +428,12 @@ function RegistrationDetailModal({ registration: r, onClose, onEdit, onDelete, d
         </div>
 
         <h2>{r.customerName}</h2>
-
+                {r.status === "REJECTED" && (
+          <div className="reject-note">
+            <strong>Rejected:</strong> {r.rejectionReason || "no reason was recorded"}
+            <span>To fix it: click Edit, correct the details, then set the status back to Submitted or Approved.</span>
+          </div>
+        )}
         <span className="detail-label">Customer</span>
         <div className="detail-grid">
           <Detail label="Customer code" value={r.publicCode} />
@@ -863,6 +872,8 @@ function DashStyles() {
       .manager-photo { display: block; margin-top: 12px; max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
       .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
       .delete-btn { color: var(--status-danger); }
+      .reject-note { background: #fdf3f2; border: 1px solid #f3d3d0; border-radius: 9px; padding: 11px 14px; font-size: 13.5px; color: var(--ink); line-height: 1.5; margin-bottom: 8px; }
+      .reject-note span { display: block; margin-top: 4px; font-size: 12.5px; color: var(--ink-muted); }
 
       @media (max-width: 1100px) {
         .board-5 { grid-template-columns: repeat(3, 1fr); }

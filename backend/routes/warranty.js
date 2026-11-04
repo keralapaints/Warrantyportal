@@ -5,7 +5,7 @@ const Complaint = require("../models/Complaint");
 const { requireAdmin, requireRole } = require("../middleware/auth");
 const { PRODUCTS, WARRANTY_YEARS_BY_PRODUCT } = require("../data/productMaster");
 const { logActivity } = require("../utils/activityLog");
-const { sendRegistrationApprovedEmail } = require("../utils/email");
+const { sendRegistrationApprovedEmail, sendRegistrationRejectedEmail } = require("../utils/email");
 const { asText, containsRegex, exactRegex } = require("../utils/regex");
 const { claimEligibility } = require("../utils/claimEligibility");
 
@@ -41,6 +41,20 @@ async function notifyApproved(registration) {
     return "sent";
   } catch (err) {
     console.error("Approval email failed:", err.message);
+    return "failed";
+  }
+}
+
+const REJECTION_REASON_REQUIRED =
+  "Please give a reason for rejecting this registration. It is emailed to the customer.";
+
+// Emails the customer the reason their registration was rejected. Never throws.
+async function notifyRejected(registration) {
+  try {
+    await sendRegistrationRejectedEmail(registration);
+    return "sent";
+  } catch (err) {
+    console.error("Rejection email failed:", err.message);
     return "failed";
   }
 }
@@ -153,6 +167,7 @@ router.post("/register", async (req, res) => {
         invoiceNumber: invoiceRe,
         siteName: siteRe,
         "items.product": { $in: productNames },
+        status: { $nin: ["REJECTED", "CANCELLED"] }, // a rejected registration doesn't block registering again
       });
       if (existing) {
         return res.status(409).json({
@@ -212,10 +227,13 @@ router.get("/verify", async (req, res) => {
         .json({ registered: false, message: "Enter your invoice number and mobile number." });
     }
 
-    const registration = await WarrantyRegistration.findOne({
+    // A customer who was rejected and registered again has two records for the same invoice.
+    // Show the newest one that is still alive; only fall back to a rejected one if that is all there is.
+    const matches = await WarrantyRegistration.find({
       invoiceNumber: invoiceRe,
       mobileNumber: mobile,
-    });
+    }).sort({ createdAt: -1 });
+    const registration = matches.find((r) => !["REJECTED", "CANCELLED"].includes(r.status)) || matches[0];
 
     if (!registration) {
       return res.status(404).json({
@@ -281,7 +299,7 @@ router.get("/", async (req, res) => {
 // since admin may be backdating an older, legitimate registration.
 router.post("/", requireRole("admin"), async (req, res) => {
   try {
-    const { items, applications, surfaceCondition, declarations, status } = req.body;
+    const { items, applications, surfaceCondition, declarations, status, rejectionReason } = req.body;
 
     if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
       return res.status(400).json({ message: "All mandatory declarations must be accepted." });
@@ -289,6 +307,11 @@ router.post("/", requireRole("admin"), async (req, res) => {
 
     const itemsError = validateItemsAndApplications(items, applications);
     if (itemsError) return res.status(400).json({ message: itemsError });
+
+    const reason = asText(rejectionReason);
+    if (status === "REJECTED" && !reason) {
+      return res.status(400).json({ message: REJECTION_REASON_REQUIRED });
+    }
 
     if (req.body.purchaseDate && applications) {
       const purchaseDate = new Date(req.body.purchaseDate);
@@ -310,6 +333,7 @@ router.post("/", requireRole("admin"), async (req, res) => {
     payload.declarations = declarations;
     payload.declarationAcceptedAt = new Date();
     if (status) payload.status = status;
+    if (status === "REJECTED") payload.rejectionReason = reason;
 
     const registration = await WarrantyRegistration.create(payload);
 
@@ -326,7 +350,10 @@ router.post("/", requireRole("admin"), async (req, res) => {
     const approvalEmail =
       registration.status === "APPROVED" ? await notifyApproved(registration) : "not_applicable";
 
-    res.status(201).json({ message: "Registration created.", registration, approvalEmail });
+    const rejectionEmail =
+      registration.status === "REJECTED" ? await notifyRejected(registration) : "not_applicable";
+
+    res.status(201).json({ message: "Registration created.", registration, approvalEmail, rejectionEmail });
   } catch (err) {
     if (err.name === "ValidationError") {
       const errors = Object.fromEntries(
@@ -347,7 +374,7 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
 
     const previousStatus = registration.status;
 
-    const { items, applications, surfaceCondition, declarations, status } = req.body;
+    const { items, applications, surfaceCondition, declarations, status, rejectionReason } = req.body;
 
     if (!declarations || REQUIRED_DECLARATIONS.some((key) => declarations[key] !== true)) {
       return res.status(400).json({ message: "All mandatory declarations must be accepted." });
@@ -355,6 +382,12 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
 
     const itemsError = validateItemsAndApplications(items, applications);
     if (itemsError) return res.status(400).json({ message: itemsError });
+
+    // Rejecting needs a reason (unless one is already on file from an earlier rejection).
+    const reason = asText(rejectionReason);
+    if (status === "REJECTED" && !reason && !registration.rejectionReason) {
+      return res.status(400).json({ message: REJECTION_REASON_REQUIRED });
+    }
 
     for (const field of TOP_LEVEL_FIELDS) {
       if (req.body[field] !== undefined) registration[field] = req.body[field];
@@ -364,6 +397,13 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     registration.surfaceCondition = surfaceCondition;
     registration.declarations = declarations;
     if (status) registration.status = status;
+
+    // The reason only belongs to a rejected registration; re-opening it clears the reason.
+    if (registration.status === "REJECTED") {
+      if (reason) registration.rejectionReason = reason;
+    } else {
+      registration.rejectionReason = "";
+    }
 
     await registration.save();
 
@@ -377,7 +417,9 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
       summary: statusChanged
         ? `${req.admin.username} updated registration ${registration.token} (status: ${previousStatus} → ${registration.status})`
         : `${req.admin.username} updated registration ${registration.token}`,
-      meta: statusChanged ? { from: previousStatus, to: registration.status } : undefined,
+      meta: statusChanged
+        ? { from: previousStatus, to: registration.status, ...(registration.status === "REJECTED" ? { reason: registration.rejectionReason } : {}) }
+        : undefined,
     });
 
     // Email the customer only when the status newly becomes APPROVED —
@@ -387,7 +429,13 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
       approvalEmail = await notifyApproved(registration);
     }
 
-    res.json({ message: "Registration updated.", registration, approvalEmail });
+    // Same for rejections: email the customer once, when the status newly becomes REJECTED.
+    let rejectionEmail = "not_applicable";
+    if (previousStatus !== "REJECTED" && registration.status === "REJECTED") {
+      rejectionEmail = await notifyRejected(registration);
+    }
+
+    res.json({ message: "Registration updated.", registration, approvalEmail, rejectionEmail });
   } catch (err) {
     if (err.name === "ValidationError") {
       const errors = Object.fromEntries(

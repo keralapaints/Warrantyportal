@@ -64,6 +64,7 @@ function toDateInput(d) {
 function emptyForm() {
   return {
     status: "SUBMITTED",
+    rejectionReason: "",
     customerName: "", mobileNumber: "", email: "", customerType: "", alternateMobile: "",
     siteName: "", houseNo: "", street: "", panchayat: "", siteDistrict: "", siteState: "Kerala",
     pincode: "", propertyType: "", paintingType: "", buildingAge: "",
@@ -82,6 +83,7 @@ function emptyForm() {
 function fromRegistration(r) {
   return {
     status: r.status || "SUBMITTED",
+        rejectionReason: r.rejectionReason || "",
     customerName: r.customerName || "", mobileNumber: r.mobileNumber || "", email: r.email || "",
     customerType: r.customerType || "", alternateMobile: r.alternateMobile || "",
     siteName: r.siteName || "", houseNo: r.houseNo || "", street: r.street || "", panchayat: r.panchayat || "",
@@ -284,7 +286,9 @@ export default function AdminRegistrationForm({ mode, initialData, registrationI
 
     const requiredDecls = ["infoAccurate", "applicationAccurate", "policyAccepted", "eligibilityUnderstood", "inspectionAccess", "privacyConsent"];
     if (requiredDecls.some((k) => !form.declarations[k])) e.declarations = "All mandatory declarations must be accepted.";
-
+    if (form.status === "REJECTED" && !form.rejectionReason.trim()) {
+      e.rejectionReason = "Give a reason. It is emailed to the customer.";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -326,7 +330,7 @@ export default function AdminRegistrationForm({ mode, initialData, registrationI
           ? await client.patch(`/warranty/${registrationId}`, payload)
           : await client.post("/warranty", payload);
 
-     onSaved(data.registration, data.approvalEmail);
+     onSaved(data.registration, data.approvalEmail, data.rejectionEmail);
     } catch (err) {
       setSubmitError(err.response?.data?.message || "Could not save. Please try again.");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -356,6 +360,15 @@ export default function AdminRegistrationForm({ mode, initialData, registrationI
               ))}
             </select>
           </Field>
+                    {form.status === "REJECTED" && (
+            <Field
+              label="Reason for rejection"
+              error={errors.rejectionReason}
+              hint="This is emailed to the customer, so write it clearly and politely (for example: the batch number doesn't match our records)."
+            >
+              <textarea rows={3} value={form.rejectionReason} onChange={update("rejectionReason")} />
+            </Field>
+          )}
         </div>
 
         <div className="section">

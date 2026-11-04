@@ -57,7 +57,16 @@ function itemCoverage(registration, now = new Date()) {
     return { product: item.product, expiresOn, expired: dayNumber(now) > dayNumber(expiresOn) };
   });
 }
-
+// The message shown when a claim can't be filed because of the registration's status.
+// For a rejected registration it includes the reason the admin gave.
+function notApprovedMessage(registration) {
+  if (registration.status === "REJECTED" && registration.rejectionReason) {
+    // drop a full stop the admin typed at the end, so the sentence doesn't end ".)."
+    const reason = String(registration.rejectionReason).trim().replace(/[.!\s]+$/, "");
+    return `This registration wasn't approved (reason: ${reason}). Please register again with the correct details, or contact Kerala Paints at ${CONTACT}.`;
+  }
+  return STATUS_MESSAGES[registration.status] || `A claim can't be filed on this registration. Please contact Kerala Paints at ${CONTACT}.`;
+}
 // Can this registration have a claim filed against it at all?
 function claimEligibility(registration, now = new Date()) {
   const items = itemCoverage(registration, now);
@@ -66,7 +75,7 @@ function claimEligibility(registration, now = new Date()) {
     return {
       claimable: false,
       code: "NOT_APPROVED",
-      message: STATUS_MESSAGES[registration.status] || `A claim can't be filed on this registration. Please contact Kerala Paints at ${CONTACT}.`,
+            message: notApprovedMessage(registration),
       items,
     };
   }
