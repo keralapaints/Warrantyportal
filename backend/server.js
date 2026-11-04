@@ -9,6 +9,7 @@ const warrantyRoutes = require("./routes/warranty");
 const otpRoutes = require("./routes/otp");
 const lostInvoiceRoutes = require("./routes/lostInvoice");
 const activityLogRoutes = require("./routes/activityLog");
+const codeRoutes = require("./routes/codes");
 const backfillPublicCodes = require("./utils/backfillPublicCodes");
 
 const app = express();
@@ -21,6 +22,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (req, res) => res.json({ ok: true, otpRoutesLoaded: true, checkedAt: new Date().toISOString() }));
 app.use("/api/activity-log", activityLogRoutes);
+app.use("/api/codes", codeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/warranty/lost-invoice", lostInvoiceRoutes);

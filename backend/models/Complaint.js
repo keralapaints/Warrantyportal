@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
-const { generatePublicCode } = require("../utils/publicCode");
+const { encodePublicCode } = require("../utils/publicCode");
 
 const STATUS_VALUES = ["new", "assigned", "review", "pending", "solved"];
 
@@ -91,7 +91,8 @@ complaintSchema.pre("validate", async function assignToken(next) {
     );
 
     this.token = `KP-${year}-${String(counter.seq).padStart(4, "0")}`;
-        this.publicCode = this.publicCode || (await generatePublicCode(this.constructor, "KP"));
+            // The code customers see: the staff number above, scrambled (it decodes back to it)
+    this.publicCode = this.publicCode || encodePublicCode(this.token);
     this.statusHistory.push({ status: this.status || "new" });
     next();
   } catch (err) {

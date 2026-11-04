@@ -3,6 +3,7 @@ import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import StaffPanel from "../components/StaffPanel.jsx";
 import AdminRegistrationForm from "../components/AdminRegistrationForm.jsx";
+import CodeLookup from "../components/CodeLookup.jsx";
 
 const COLUMNS = [
   { key: "new", label: "New" },
@@ -132,6 +133,8 @@ export default function AdminDashboard() {
       </header>
 
       <div className="container">
+        <CodeLookup />
+
         <div className="view-switch">
           <button
             className={`view-pill ${view === "complaints" ? "active" : ""}`}

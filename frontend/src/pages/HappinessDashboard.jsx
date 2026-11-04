@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import CodeLookup from "../components/CodeLookup.jsx";
 
 const TABS = [
   { key: "review", label: "Awaiting your review" },
@@ -90,6 +91,8 @@ export default function HappinessDashboard() {
       </header>
 
       <div className="container">
+        <CodeLookup />
+
         <div className="tab-row">
           {TABS.map((t) => (
             <button key={t.key} className={`tab-pill ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>

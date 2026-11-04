@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import client, { fileUrl } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import CodeLookup from "../components/CodeLookup.jsx";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -57,6 +58,8 @@ export default function ManagerDashboard() {
       </header>
 
       <div className="container">
+        <CodeLookup />
+
         <div className="tab-row">
           {[
             { key: "assigned", label: "To do" },
