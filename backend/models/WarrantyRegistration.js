@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
+const { generatePublicCode } = require("../utils/publicCode");
 
 const YES_NO_UNKNOWN = ["Yes", "No", "Not Known"];
 
@@ -46,6 +47,8 @@ const applicationSchema = new mongoose.Schema(
 const warrantyRegistrationSchema = new mongoose.Schema(
   {
     token: { type: String, unique: true, index: true },
+    // The code customers see (random). "token" above is the running number for staff.
+    publicCode: { type: String, unique: true, sparse: true },
     warrantyNumber: { type: String, default: null },
 
     status: {
@@ -157,6 +160,8 @@ warrantyRegistrationSchema.pre("validate", async function assignToken(next) {
     );
 
     this.token = `WR-${year}-${String(counter.seq).padStart(4, "0")}`;
+    // The random code customers see (the running number above stays for staff)
+    this.publicCode = this.publicCode || (await generatePublicCode(this.constructor, "WR"));
     next();
   } catch (err) {
     next(err);

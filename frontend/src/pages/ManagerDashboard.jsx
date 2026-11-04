@@ -143,9 +143,9 @@ function ItemsList({ items }) {
         <div className="item-line" key={i}>
           <span className="item-line-product">{it.product}</span>
           <span className="item-line-meta">
-  {it.shadeType} · {it.containers} × {it.packSize}
-  {it.totalQuantity ? ` (${it.totalQuantity})` : ""} · Batch {(it.batchNumbers || []).join(", ")}
-</span>
+            {it.shadeType} · {it.containers} × {it.packSize}
+            {it.totalQuantity ? ` (${it.totalQuantity})` : ""} · Batch {(it.batchNumbers || []).join(", ")}
+          </span>
         </div>
       ))}
     </div>
@@ -170,6 +170,9 @@ function ViewModal({ complaint, onClose }) {
         </div>
 
         <h2>{complaint.customerName}</h2>
+        <p style={{ margin: "-6px 0 10px", fontSize: 13, color: "var(--ink-muted)" }}>
+          Customer code: <strong style={{ fontFamily: "var(--font-mono)" }}>{complaint.publicCode}</strong>
+        </p>
         <ItemsList items={complaint.items} />
         <p className="original-complaint">{complaint.complaintText}</p>
 
@@ -240,6 +243,9 @@ function SubmitModal({ complaint, onClose, onSubmitted }) {
         </div>
 
         <h2>{complaint.customerName}</h2>
+        <p style={{ margin: "-6px 0 10px", fontSize: 13, color: "var(--ink-muted)" }}>
+          Customer code: <strong style={{ fontFamily: "var(--font-mono)" }}>{complaint.publicCode}</strong>
+        </p>
         <ItemsList items={complaint.items} />
         <p className="original-complaint">{complaint.complaintText}</p>
 

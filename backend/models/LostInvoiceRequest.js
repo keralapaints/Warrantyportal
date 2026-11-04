@@ -1,9 +1,12 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
+const { generatePublicCode } = require("../utils/publicCode");
 
 const lostInvoiceRequestSchema = new mongoose.Schema(
   {
-    token: { type: String, unique: true, index: true }, // e.g. LI-2026-0001
+    token: { type: String, unique: true, index: true },
+        // The code customers see (random). "token" above is the running number for staff.
+    publicCode: { type: String, unique: true, sparse: true }, // e.g. LI-2026-0001
 
     customerName: { type: String, required: true, trim: true },
     mobileNumber: {
@@ -45,6 +48,7 @@ lostInvoiceRequestSchema.pre("validate", async function assignToken(next) {
       { new: true, upsert: true }
     );
     this.token = `LI-${year}-${String(counter.seq).padStart(4, "0")}`;
+        this.publicCode = this.publicCode || (await generatePublicCode(this.constructor, "LI"));
     next();
   } catch (err) {
     next(err);

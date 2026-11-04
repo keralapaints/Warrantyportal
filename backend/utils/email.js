@@ -18,6 +18,11 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+// FRONTEND_URL can hold several addresses separated by commas; links in emails use the first one.
+function siteUrl() {
+  return (process.env.FRONTEND_URL || "").split(",")[0].trim().replace(/\/+$/, "");
+}
+
 async function sendOtpEmail(email, otp) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
@@ -48,7 +53,7 @@ async function sendOtpEmail(email, otp) {
 }
 
 async function sendRegistrationApprovedEmail(registration) {
-  const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+  const baseUrl = siteUrl();
   const claimUrl = `${baseUrl}/claim`;
 
   const productList = (registration.items || [])
@@ -63,7 +68,8 @@ async function sendRegistrationApprovedEmail(registration) {
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: registration.email,
-    subject: `Your Kerala Paints warranty registration ${registration.token} is approved`,
+    // The customer's code (the random one), never the staff running number.
+    subject: `Your Kerala Paints warranty registration ${registration.publicCode} is approved`,
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
         <p style="font-size: 14px; color: #56697a;">Kerala Paints · Warranty</p>
@@ -73,7 +79,7 @@ async function sendRegistrationApprovedEmail(registration) {
           Good news — we've reviewed and approved your warranty registration.
         </p>
         <div style="font-family: monospace; font-size: 20px; font-weight: 700; color: #0a78ab; margin: 16px 0;">
-          ${escapeHtml(registration.token)}
+          ${escapeHtml(registration.publicCode)}
         </div>
         <p style="font-size: 14px; color: #0b1f2a; margin-bottom: 6px;">Registered products:</p>
         <ul style="font-size: 14px; color: #0b1f2a; margin-top: 0;">${productList}</ul>
@@ -97,8 +103,9 @@ async function sendRegistrationApprovedEmail(registration) {
     throw new Error(error.message || "Failed to send email via Resend");
   }
 }
+
 async function sendClaimSolvedEmail({ email, customerName, token, items }) {
-  const baseUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+  const baseUrl = siteUrl();
   const trackUrl = `${baseUrl}/track`;
 
   const productList = (items || [])
@@ -139,4 +146,5 @@ async function sendClaimSolvedEmail({ email, customerName, token, items }) {
     throw new Error(error.message || "Failed to send email via Resend");
   }
 }
+
 module.exports = { sendOtpEmail, sendRegistrationApprovedEmail, sendClaimSolvedEmail };

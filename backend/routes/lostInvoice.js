@@ -33,7 +33,7 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({
       message: "Request submitted. Our team will review it and get in touch.",
-      token: request.token,
+      token: request.publicCode, // customers only ever see the random code
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -56,9 +56,9 @@ router.get("/", async (req, res) => {
     const { status, search } = req.query;
     const filter = {};
     if (status) filter.status = status;
-       const re = containsRegex(search);
+    const re = containsRegex(search);
     if (re) {
-      filter.$or = [{ token: re }, { customerName: re }, { mobileNumber: re }, { siteName: re }];
+      filter.$or = [{ token: re }, { publicCode: re }, { customerName: re }, { mobileNumber: re }, { siteName: re }];
     }
     const requests = await LostInvoiceRequest.find(filter).sort({ createdAt: -1 });
     res.json(requests);
@@ -84,9 +84,9 @@ router.patch("/:id/approve", async (req, res) => {
       return res.status(400).json({ message: "This request has already been reviewed." });
     }
 
-    const registration = await WarrantyRegistration.findOne({
-      token: warrantyToken.trim().toUpperCase(),
-    });
+    // Staff can type either the running number or the customer's code.
+    const code = warrantyToken.trim().toUpperCase();
+    const registration = await WarrantyRegistration.findOne({ $or: [{ token: code }, { publicCode: code }] });
     if (!registration) {
       return res.status(400).json({ message: "No warranty registration found with that token." });
     }

@@ -9,6 +9,7 @@ const warrantyRoutes = require("./routes/warranty");
 const otpRoutes = require("./routes/otp");
 const lostInvoiceRoutes = require("./routes/lostInvoice");
 const activityLogRoutes = require("./routes/activityLog");
+const backfillPublicCodes = require("./utils/backfillPublicCodes");
 
 const app = express();
 
@@ -34,7 +35,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-  .then(() => {
+    .then(async () => {
+    // Give customer-facing codes to anything created before they existed.
+    try {
+      await backfillPublicCodes();
+    } catch (err) {
+      console.error("Could not add customer codes to old records:", err.message);
+    }
     app.listen(PORT, () => console.log(`API running on port ${PORT}`));
   })
   .catch((err) => {

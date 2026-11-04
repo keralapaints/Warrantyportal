@@ -264,6 +264,7 @@ function LostInvoiceReviewModal({ request, onClose, onResolved }) {
 
         <h2>{request.customerName}</h2>
         <div className="detail-grid">
+          <Detail label="Customer code" value={request.publicCode} />
           <Detail label="Mobile" value={request.mobileNumber} />
           <Detail label="Email" value={request.email} />
           <Detail label="Site" value={`${request.siteName}${request.street ? ", " + request.street : ""}`} />
@@ -281,7 +282,7 @@ function LostInvoiceReviewModal({ request, onClose, onResolved }) {
           <div className="search-row">
             <input
               type="text"
-              placeholder="Search by name, mobile, invoice, or token"
+              placeholder="Search by name, mobile, invoice, number or customer code"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -380,6 +381,7 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
         <h2>{complaint.customerName}</h2>
 
         <div className="detail-grid">
+          <Detail label="Customer code" value={complaint.publicCode} />
           <Detail label="District / Outlet" value={`${complaint.district} / ${complaint.outlet}`} />
           <Detail label="Handled by" value={complaint.assignedTo?.name || complaint.assignedTo?.username} />
         </div>

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Counter = require("./Counter");
+const { generatePublicCode } = require("../utils/publicCode");
 
 const STATUS_VALUES = ["new", "assigned", "review", "pending", "solved"];
 
@@ -30,6 +31,8 @@ const complaintItemSchema = new mongoose.Schema(
 const complaintSchema = new mongoose.Schema(
   {
     token: { type: String, unique: true, index: true },
+        // The code customers see (random). "token" above is the running number for staff.
+    publicCode: { type: String, unique: true, sparse: true },
     warrantyToken: { type: String, required: true, trim: true, uppercase: true, index: true },
 
     date: { type: Date, required: true, default: Date.now },
@@ -88,6 +91,7 @@ complaintSchema.pre("validate", async function assignToken(next) {
     );
 
     this.token = `KP-${year}-${String(counter.seq).padStart(4, "0")}`;
+        this.publicCode = this.publicCode || (await generatePublicCode(this.constructor, "KP"));
     this.statusHistory.push({ status: this.status || "new" });
     next();
   } catch (err) {

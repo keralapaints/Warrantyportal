@@ -115,7 +115,7 @@ export default function AdminDashboard() {
               <input
                 className="search-input"
                 type="text"
-                placeholder="Search token, name, phone, invoice…"
+                placeholder="Search number, customer code, name, phone, invoice…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -312,17 +312,17 @@ function RegistrationsPanel() {
     setSelected(null);
   }
   function handleSaved(_saved, approvalEmail) {
-  setFormMode(null);
-  setFormInitialData(null);
-  setNotice(
-    approvalEmail === "sent"
-      ? { text: "Registration saved. Approval email sent to the customer.", error: false }
-      : approvalEmail === "failed"
-      ? { text: "Registration saved, but the approval email could not be sent. Check the customer's email address.", error: true }
-      : null
-  );
-  load(search);
-}
+    setFormMode(null);
+    setFormInitialData(null);
+    setNotice(
+      approvalEmail === "sent"
+        ? { text: "Registration saved. Approval email sent to the customer.", error: false }
+        : approvalEmail === "failed"
+        ? { text: "Registration saved, but the approval email could not be sent. Check the customer's email address.", error: true }
+        : null
+    );
+    load(search);
+  }
 
   async function handleDelete(reg) {
     setDeleteError("");
@@ -356,7 +356,7 @@ function RegistrationsPanel() {
       <div className="reg-search-row">
         <input
           type="text"
-          placeholder="Search token, name, mobile, or invoice…"
+          placeholder="Search number, customer code, name, mobile or invoice…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="reg-search-input"
@@ -369,7 +369,7 @@ function RegistrationsPanel() {
 
       {error && <div className="dash-error">{error}</div>}
       {deleteError && <div className="dash-error">{deleteError}</div>}
-       {notice && <div className={notice.error ? "dash-error" : "dash-notice"}>{notice.text}</div>}
+      {notice && <div className={notice.error ? "dash-error" : "dash-notice"}>{notice.text}</div>}
       <div className="reg-list">
         {loading && <div className="empty-note">Loading…</div>}
         {!loading && registrations.length === 0 && <div className="empty-note">No registrations found.</div>}
@@ -424,6 +424,7 @@ function RegistrationDetailModal({ registration: r, onClose, onEdit, onDelete, d
 
         <span className="detail-label">Customer</span>
         <div className="detail-grid">
+          <Detail label="Customer code" value={r.publicCode} />
           <Detail label="Mobile" value={r.mobileNumber} />
           <Detail label="Alternate mobile" value={r.alternateMobile} />
           <Detail label="Email" value={r.email} />
@@ -538,6 +539,7 @@ function DetailModal({ complaint, onClose, onDecide, busy }) {
         <h2>{complaint.customerName}</h2>
 
         <div className="detail-grid">
+          <Detail label="Customer code" value={complaint.publicCode} />
           <Detail label="Date" value={formatDate(complaint.date)} />
           <Detail label="District" value={complaint.district} />
           <Detail label="Outlet" value={complaint.outlet} />

@@ -8,6 +8,7 @@ const { logActivity } = require("../utils/activityLog");
 const { sendClaimSolvedEmail } = require("../utils/email");
 const { containsRegex, asText, exactRegex } = require("../utils/regex");
 const { claimEligibility, itemCoverage, matchRequestedItems, formatDate } = require("../utils/claimEligibility");
+
 const router = express.Router();
 
 // Emails the customer when their claim is marked Solved. Never throws — a mail
@@ -22,7 +23,7 @@ async function notifyClaimSolved(complaint) {
     await sendClaimSolvedEmail({
       email: registration.email,
       customerName: complaint.customerName,
-      token: complaint.token,
+      token: complaint.publicCode, // the customer's code, not the staff number
       items: complaint.items,
     });
     return "sent";
@@ -45,15 +46,15 @@ const PUBLIC_FIELDS = [
 
 router.post("/", async (req, res) => {
   try {
-        const warrantyToken = asText(req.body.warrantyToken);
+    const warrantyToken = asText(req.body.warrantyToken);
     if (!warrantyToken) {
       return res.status(400).json({ message: "A warranty registration is required to file a claim." });
     }
 
-    // WR numbers run in sequence and are easy to guess, so the person must also
-    // give the invoice number and mobile number the registration was made with.
-    // One message for every kind of mismatch, so nobody can probe which WR numbers exist.
-    const registration = await WarrantyRegistration.findOne({ token: warrantyToken.toUpperCase() });
+    // The customer's registration code (the random one shown to customers), plus the invoice
+    // number and mobile number the registration was made with.
+    // One message for every kind of mismatch, so nobody can probe which codes exist.
+    const registration = await WarrantyRegistration.findOne({ publicCode: warrantyToken.toUpperCase() });
     const invoiceRe = exactRegex(req.body.invoiceNumber);
     const mobile = asText(req.body.contactNumber);
     const detailsMatch =
@@ -100,7 +101,7 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({
       message: "Claim submitted successfully.",
-      token: complaint.token,
+      token: complaint.publicCode, // customers only ever see the random code
       status: complaint.status,
     });
   } catch (err) {
@@ -117,13 +118,19 @@ router.post("/", async (req, res) => {
 
 router.get("/track/:token", async (req, res) => {
   try {
-    const complaint = await Complaint.findOne({ token: req.params.token.toUpperCase() }).select(
-      "token status date items createdAt updatedAt"
+    // Customers look claims up by their random code. The staff number never works here.
+    const complaint = await Complaint.findOne({ publicCode: String(req.params.token).trim().toUpperCase() }).select(
+      "publicCode status date items"
     );
     if (!complaint) {
-      return res.status(404).json({ message: "No claim found with that token." });
+      return res.status(404).json({ message: "No claim found with that number." });
     }
-    res.json(complaint);
+    res.json({
+      token: complaint.publicCode,
+      status: complaint.status,
+      date: complaint.date,
+      items: complaint.items.map((item) => ({ product: item.product })),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Something went wrong. Please try again." });
@@ -140,10 +147,11 @@ router.get("/", async (req, res) => {
     if (status && Complaint.STATUS_VALUES.includes(status)) {
       filter.status = status;
     }
-      const re = containsRegex(search);
+    const re = containsRegex(search);
     if (re) {
       filter.$or = [
         { token: re },
+        { publicCode: re },
         { customerName: re },
         { contactNumber: re },
         { invoiceNumber: re },
