@@ -192,13 +192,17 @@ export const OUTLETS_BY_DISTRICT = {
     "Factory outlet (Kattappana)",
     "Factory outlet (Thodupuzha)",
   ],
-  "Ernakulam": ["Factory outlet (Edappally)"],
+   "Ernakulam": [
+    "Factory outlet (Edappally)",
+    "SIBEES TRADECENTRE (Kothamangalam)",
+  ],
   "Thrissur": [
     "Factory outlet (Chalakkudy)",
     "KK BROTHERS (Guruvayoor Municipality)",
   ],
   "Palakkad": [
     "Factory outlet (Kalpathy)",
+    "Factory outlet (Vadakkancheri)",
     "PR KUTHANNUR (Kuthannur Panchayath)",
     "NEXUS SEVEN (Pattambi Municipality)",
     "SHAMA TRADERS (Alanalloor Panchayath)",
@@ -219,14 +223,15 @@ export const OUTLETS_BY_DISTRICT = {
     "WHITE HOUSE (Vythiri Panchayath)",
     "VKS (Vellamunda Panchayath)",
   ],
-  "Kozhikode": [
+   "Kozhikode": [
     "Factory outlet (Chemancherry)",
-    "ES AGENCIES (Kuttiyadi Panchayath)",
+    "Factory outlet (Meenchantha)",
+    "Factory outlet (Kuttiyadi)",
     "7 SHADES (Kozhikode Corporation (Pottammal))",
-    "7 SHADES (Kozhikode Corporation (Meecham))",
     "YES WE ASSOSIACTES (Nadapuram Panchayath)",
     "F S AGENCIES (Kunnummal Panchayath)",
     "RAIN BOW PAINTS (Eramala Panchayath)",
+    "MC TRADERS (Vadakara Municipality)",
   ],
   "Mahe": ["FRENCH TRADING (Mahe Panchayath)"],
   "Kannur": [
@@ -241,6 +246,7 @@ export const OUTLETS_BY_DISTRICT = {
     "HNM MARKETING (Chengala Panchayath)",
     "AMS INFINITY WORLS (Chemnad Panchayath)",
     "ABM  PAINTS & HARDWARES (Ajanur Panchayath)",
+    "RN TRADERS (Mogral Puthur Panchayath)",
   ],
   "Coimbatore": ["Factory outlet (Coimbatore)"],
 };
