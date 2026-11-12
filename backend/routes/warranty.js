@@ -17,7 +17,7 @@ const publicItem = (item) => {
   return rest;
 };
 
-const REGISTRATION_WINDOW_DAYS = 15;
+
 
 const TOP_LEVEL_FIELDS = [
   "customerName", "mobileNumber", "email", "customerType", "alternateMobile",
@@ -149,13 +149,6 @@ router.post("/register", async (req, res) => {
       );
       if (beforePurchase) {
         return res.status(400).json({ message: "Painting start date cannot be before the purchase date." });
-      }
-
-      const daysSince = (Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSince > REGISTRATION_WINDOW_DAYS) {
-        return res.status(400).json({
-          message: `Registration must be completed within ${REGISTRATION_WINDOW_DAYS} days of purchase. This invoice is outside that window — contact us for manual review.`,
-        });
       }
     }
 

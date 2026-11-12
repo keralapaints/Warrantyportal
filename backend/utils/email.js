@@ -170,14 +170,13 @@ async function sendRegistrationRejectedEmail(registration) {
           <strong>Reason:</strong> ${escapeHtml(registration.rejectionReason)}
         </div>
         <p style="font-size: 14px; color: #0b1f2a; margin-bottom: 6px;"><strong>What you can do</strong></p>
-        <ul style="font-size: 14px; color: #0b1f2a; margin-top: 0; padding-left: 20px;">
+             <ul style="font-size: 14px; color: #0b1f2a; margin-top: 0; padding-left: 20px;">
           <li style="margin-bottom: 6px;">
             If a detail was wrong or missing, register again with the correct details at
             <a href="${escapeHtml(registerUrl)}">${escapeHtml(registerUrl)}</a>.
-            Registration must be completed within 15 days of purchase.
           </li>
           <li>
-            If you think this is a mistake, or the 15 days have passed, contact us at
+            If you think this is a mistake, contact us at
             warranty@keralapaints.com or +91 9539 320 999 and quote the code above. We will look into it.
           </li>
         </ul>

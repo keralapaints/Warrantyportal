@@ -65,9 +65,9 @@ export default function Home() {
           <section className="hero">
             <div className="hero-copy">
               <h1>Register your paint warranty. Claim it when you need it.</h1>
-              <p className="hero-lead">
-                Register within 15 days of finishing the job. After that, all you need to make a
-                claim is your invoice number and mobile number.
+                        <p className="hero-lead">
+                Register once the job is done. After that, all you need to make a claim is your
+                invoice number and mobile number.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary btn-lg" to="/warranty/register">

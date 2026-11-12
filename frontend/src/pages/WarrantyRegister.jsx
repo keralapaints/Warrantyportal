@@ -399,8 +399,8 @@ export default function WarrantyRegister() {
         <div className="glass-card form-card">
           <span className="eyebrow">Kerala Paints · Warranty</span>
           <h1>Register your warranty</h1>
-          <p className="form-intro">
-            Register within 15 days of purchase. All sections marked mandatory must be completed.
+                  <p className="form-intro">
+            Register once your painting job is complete. All sections marked mandatory must be completed.
           </p>
 
           {submitError && <div className="submit-error top">{submitError}</div>}
